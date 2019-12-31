@@ -29,6 +29,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,v
         }
         
         sci <- hdsci.worker(X,alpha,side,tau,B,pairs,Sig)
+        sci$tau <- tau
         return(sci)
     }
     else stop('X must be matrix or a list')
