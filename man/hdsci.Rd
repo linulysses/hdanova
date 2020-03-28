@@ -18,15 +18,23 @@ hdsci(X, alpha = 0.05, side = "both", tau = NULL, B = 1000,
 
 \item{B}{the number of bootstrap replicates}
 
-\item{pairs}{a vector with two columns. When number of samples is larger than two, each row specifies the pairs of samples for which the SCI are constructed}
+\item{pairs}{a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations for which the SCI are constructed, and if set to \code{NULL}, SCIs for all pairs are constructed.}
 
-\item{Sig}{a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample}
+\item{Sig}{a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}}
 }
 \value{
 a list of the following objects: \code{sci.lower} (\code{sci.upper}) is a vector (one- or two-sample) or a list of vectors (three or more samples) specifying the lower (upper) bound of SCI for the mean (one sample) or the difference of means of each pair of samples; when number of samples is larger than two, \code{pairs} is a matrix of two columns, each row containing the a pair of indices of samples whose SCI is constructed
 }
 \description{
 Construct (1-\code{alpha}) simultaneous confidence interval (SCI)  for the mean or difference of means of high-dimensional vectors
+}
+\examples{
+ 
+# simulate a dataset of 4 samples
+X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0,10),diag((1:10)^(-0.5*g))))
+
+# construct SCIs for the mean vectors with pairs={(1,3),(2,4)}
+hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))
 }
 \references{
 \insertRef{Lopes2019+}{hdanova}

@@ -5,20 +5,34 @@
 #' @param side either of \code{c('lower','upper', or 'both')}. default value is 'both'
 #' @param tau the decay parameter, automatically selected if set to \code{NULL}
 #' @param B the number of bootstrap replicates
-#' @param pairs a vector with two columns. When number of samples is larger than two, each row specifies the pairs of samples for which the SCI are constructed
-#' @param Sig a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample
+#' @param pairs a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations for which the SCI are constructed, and if set to \code{NULL}, SCIs for all pairs are constructed.
+#' @param Sig a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}
 #' @return a list of the following objects: \code{sci.lower} (\code{sci.upper}) is a vector (one- or two-sample) or a list of vectors (three or more samples) specifying the lower (upper) bound of SCI for the mean (one sample) or the difference of means of each pair of samples; when number of samples is larger than two, \code{pairs} is a matrix of two columns, each row containing the a pair of indices of samples whose SCI is constructed
 #' @importFrom Rdpack reprompt
 #' @references 
 #' \insertRef{Lopes2019+}{hdanova}
 #' 
 #' \insertRef{Lin2020}{hdanova}
+#' @examples  
+#' # simulate a dataset of 4 samples
+#' X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0,10),diag((1:10)^(-0.5*g))))
+#' 
+#' # construct SCIs for the mean vectors with pairs={(1,3),(2,4)}
+#' hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))
 #' @export
 hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
 {
     if(is.matrix(X)) # one-sample
     {
-        return(hdsci.one(X,alpha,side,tau,B,Sig,verbose))
+        if(length(tau) != 1)
+        {
+            res <- hdsci.tau(X,alpha,tau,B,
+                             method=c('avg'),
+                             NULL,Sig,verbose)
+            tau <- res$tau
+        }
+        return(hdsci1(X,alpha,side,tau,B,Sig,verbose))
+        #return(hdsci1(X,alpha,side,tau,B,Sig,verbose))
     }
     else if(is.list(X))
     {
@@ -33,7 +47,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,v
             tau <- res$tau
         }
         
-        sci <- hdsci.worker(X,alpha,side,tau,B,pairs,Sig)
+        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig)
         sci$tau <- tau
         return(sci)
     }
@@ -43,21 +57,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,v
 }
 
 # for one sample
-hdsci.one <- function(X,alpha,side,tau,B,Sig,verbose)
-{
-    if(length(tau) != 1)
-    {
-        res <- hdsci.tau(X,alpha,tau,B,
-                         method=c('avg'),
-                         NULL,Sig,verbose)
-        tau <- res$tau
-    }
-    
-    sci <- hdsci.one.worker(X,alpha,side,tau,B,Sig,verbose)
-    return(sci)
-}
-
-hdsci.one.worker <- function(X,alpha,side,tau,B,Sig,verbose)
+hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
 {
     n <- nrow(X)
     p <- ncol(X)
@@ -124,8 +124,8 @@ hdsci.one.worker <- function(X,alpha,side,tau,B,Sig,verbose)
     return(res)
 }
 
-# the hdsci worker for the case of more than one sample
-hdsci.worker <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
+# for more than one sample
+hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
 {
     # size of each sample
     ns <- sapply(X,function(x){nrow(x)})
@@ -248,8 +248,8 @@ hdsci.tau <- function(X,alpha,tau,B,
     for(i in 1:length(tau))
     {
         #3. bootstraping to get SCI
-        if(is.matrix(X)) sci <- hdsci.one.worker(X,alpha,'both',tau[i],B,Sig,verbose) # one-sample
-        else sci <- hdsci.worker(X,alpha,'both',tau[i],B,pairs,Sig,verbose) # two or more
+        if(is.matrix(X)) sci <- hdsci1(X,alpha,'both',tau[i],B,Sig,verbose) # one-sample
+        else sci <- hdsciK(X,alpha,'both',tau[i],B,pairs,Sig,verbose) # two or more
         
         #4. select tau for each method
         u <- unlist(sci$ci.upper)
