@@ -2,3 +2,4 @@
 
 export(hdsci)
 export(hdtest)
+importFrom(Rdpack,reprompt)

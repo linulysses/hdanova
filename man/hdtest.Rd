@@ -5,14 +5,14 @@
 \title{Hypothesis test for high-dimensional data}
 \usage{
 hdtest(X, alpha = 0.05, tau = NULL, B = 1000, pairs = NULL,
-  Sigma = NULL, verbose = F)
+  Sig = NULL, verbose = F)
 }
 \arguments{
 \item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows}
 
 \item{alpha}{significance level}
 
-\item{tau}{the decay parameter}
+\item{tau}{the decay parameter, automatically selected if set to \code{NULL}}
 
 \item{B}{the number of bootstrap replicates}
 
@@ -25,4 +25,9 @@ a list of objects: \code{reject} is a boolean variable indicating whether the nu
 }
 \description{
 Test the mean or differences of means of high-dimensional vectors are zero or not
+}
+\references{
+\insertRef{Lopes2019+}{hdanova}
+
+\insertRef{Lin2020}{hdanova}
 }

@@ -3,11 +3,16 @@
 #' @param X a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows
 #' @param alpha significance level
 #' @param side either of \code{c('lower','upper', or 'both')}. default value is 'both'
-#' @param tau the decay parameter
+#' @param tau the decay parameter, automatically selected if set to \code{NULL}
 #' @param B the number of bootstrap replicates
 #' @param pairs a vector with two columns. When number of samples is larger than two, each row specifies the pairs of samples for which the SCI are constructed
 #' @param Sig a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample
 #' @return a list of the following objects: \code{sci.lower} (\code{sci.upper}) is a vector (one- or two-sample) or a list of vectors (three or more samples) specifying the lower (upper) bound of SCI for the mean (one sample) or the difference of means of each pair of samples; when number of samples is larger than two, \code{pairs} is a matrix of two columns, each row containing the a pair of indices of samples whose SCI is constructed
+#' @importFrom Rdpack reprompt
+#' @references 
+#' \insertRef{Lopes2019+}{hdanova}
+#' 
+#' \insertRef{Lin2020}{hdanova}
 #' @export
 hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
 {

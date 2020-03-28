@@ -14,7 +14,7 @@ hdsci(X, alpha = 0.05, side = "both", tau = NULL, B = 1000,
 
 \item{side}{either of \code{c('lower','upper', or 'both')}. default value is 'both'}
 
-\item{tau}{the decay parameter}
+\item{tau}{the decay parameter, automatically selected if set to \code{NULL}}
 
 \item{B}{the number of bootstrap replicates}
 
@@ -27,4 +27,9 @@ a list of the following objects: \code{sci.lower} (\code{sci.upper}) is a vector
 }
 \description{
 Construct (1-\code{alpha}) simultaneous confidence interval (SCI)  for the mean or difference of means of high-dimensional vectors
+}
+\references{
+\insertRef{Lopes2019+}{hdanova}
+
+\insertRef{Lin2020}{hdanova}
 }
