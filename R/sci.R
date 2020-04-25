@@ -199,10 +199,18 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
         j <- pairs[q,1]
         k <- pairs[q,2]
         
+        lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
+        lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
+        
+        sig2j <- diag(Sig[[j]])
+        sig2k <- diag(Sig[[k]])
+        
+        sigma <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
         
         X.bar <- apply(X[[j]],2,mean)
         Y.bar <- apply(X[[k]],2,mean)
         sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
+        
         if(side == 'both' || side == 'lower')
             sci.lower[[q]] <- (X.bar-Y.bar) - Mn.sorted[b2] * sigma / sqrt.harm.n
         if(side == 'both' || size == 'upper')
