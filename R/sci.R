@@ -42,8 +42,8 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,v
         if(length(tau) != 1)
         {
             res <- hdsci.tau(X,alpha,
-                              tau,B,method=c('avg'),
-                              pairs,Sig,verbose)
+                             tau,B,method=c('avg'),
+                             pairs,Sig,verbose)
             tau <- res$tau
         }
         
@@ -73,10 +73,12 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
     
     # bootstrap max statistic
     sigma <- sqrt(diag(Sig))^tau 
+    idx <- (sigma <= 0)
     S <- W / matrix(sigma,B,p,byrow=T)
+    S[,idx] <- 0
     Mn <- apply(S,1,max)
     Ln <- apply(S,1,min)
-
+    
     
     # construct SCI
     side <- tolower(side)
@@ -91,7 +93,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
         a2 <- alpha
     }
     
-    b1 <- round(a1*B)
+    b1 <- max(1,round(a1*B))
     b2 <- round(a2*B)
     
     Ln.sorted <- sort(Ln)
@@ -100,8 +102,10 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
     X.bar <- apply(X,2,mean)
     
     sci.lower <- X.bar - Mn.sorted[b2] * sigma / rtn
+    sci.lower[idx] <- 0
     sci.upper <- X.bar - Ln.sorted[b1] * sigma / rtn
-
+    sci.upper[idx] <- 0
+    
     
     # output
     res <- list(tau=tau,
@@ -138,7 +142,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
     {
         Sig <- lapply(X,function(x){var(scale(x,center=TRUE,scale=FALSE))})
     }
-
+    
     n <- sum(ns) # total sample size
     G <- length(X) # number of samples
     
@@ -166,6 +170,8 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
         
         sigma <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
         S <- (lamj * W[[j]] - lamk * W[[k]]) / matrix(sigma,B,p,byrow=T)
+        idx <- (sigma==0)
+        S[,idx] <- 0
         Mn[,q] <- apply(S,1,max)
         Ln[,q] <- apply(S,1,min)
     }
@@ -188,7 +194,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
     }
     
     
-    b1 <- round(a1*B)
+    b1 <- max(1,round(a1*B))
     b2 <- round(a2*B)
     
     sci.lower <- list()
@@ -211,10 +217,20 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
         Y.bar <- apply(X[[k]],2,mean)
         sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
         
+        idx <- (sigma==0)
+        
         if(side == 'both' || side == 'lower')
-            sci.lower[[q]] <- (X.bar-Y.bar) - Mn.sorted[b2] * sigma / sqrt.harm.n
+        {
+            tmp <- (X.bar-Y.bar) - Mn.sorted[b2] * sigma / sqrt.harm.n
+            tmp[idx] <- 0
+            sci.lower[[q]] <- tmp
+        }
         if(side == 'both' || size == 'upper')
-            sci.upper[[q]] <- (X.bar-Y.bar) - Ln.sorted[b1] * sigma / sqrt.harm.n
+        {
+            tmp <- (X.bar-Y.bar) - Ln.sorted[b1] * sigma / sqrt.harm.n
+            tmp[idx] <- 0
+            sci.upper[[q]] <- tmp
+        }
     }
     
     # output
@@ -231,20 +247,20 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
         if(G <= 2) sci.lower <- sci.lower[[1]]
         res$sci.lower <- sci.lower
     }
-        
+    
     if(side == 'both' || size == 'upper')
     {
         if(G <= 2) sci.upper <- sci.upper[[1]]
         res$sci.upper <- sci.upper
     }
-        
+    
     return(res)
 }
 
 # select tau 
 hdsci.tau <- function(X,alpha,tau,B,
-                       method=c('min.max','max.min','avg'),
-                       pairs,Sig,verbose)
+                      method=c('min.max','max.min','avg'),
+                      pairs,Sig,verbose)
 {
     if(is.null(tau)) tau <- seq(from=0.1,to=0.9,by=0.1)
     
