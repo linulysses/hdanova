@@ -21,7 +21,7 @@ hdtest(X, alpha = 0.05, tau = NULL, B = 1000, pairs = NULL,
 \item{Sig}{a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}}
 }
 \value{
-a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection
+a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
 }
 \description{
 Test the mean or differences of means of high-dimensional vectors are zero or not

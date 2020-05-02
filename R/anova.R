@@ -6,7 +6,7 @@
 #' @param B the number of bootstrap replicates
 #' @param pairs a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations whose means are compared, and if set to \code{NULL}, comparisons for all pairs are performed
 #' @param Sig a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}
-#' @return a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection
+#' @return a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
 #' @importFrom Rdpack reprompt
 #' @references 
 #' \insertRef{Lopes2019+}{hdanova}
@@ -46,6 +46,48 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
         rej.pairs <- sci$pairs[which(rej.idx==1),]
         res$rej.pairs <- rej.pairs
     }
+    
+    # compute p-value
+    
+    zl <- Inf
+    zu <- -Inf
+    pairs <- sci$pairs
+    Sig <- sci$Sig
+    tau <- sci$tau
+    ns <- sapply(X,function(x){nrow(x)})
+    
+    for(q in 1:nrow(pairs))
+    {
+        j <- pairs[q,1]
+        k <- pairs[q,2]
+        
+        lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
+        lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
+        
+        sig2j <- diag(Sig[[j]])
+        sig2k <- diag(Sig[[k]])
+        
+        sigma <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
+        
+        X.bar <- apply(X[[j]],2,mean)
+        Y.bar <- apply(X[[k]],2,mean)
+        sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
+        
+        idx <- (sigma!=0)
+        
+        sigma <- sigma[idx]
+        
+        tmp <- X.bar-Y.bar
+        tmp <- tmp[idx]
+        
+        zl <- min(zl,min(tmp*sqrt.harm.n/sigma))
+        zu <- max(zu,max(tmp*sqrt.harm.n/sigma))
+    }
+    
+    eta <- mean(sci$Mn.sorted >= zu)
+    eta <- min(eta,mean(sci$Ln.sorted <= zl))
+    
+    res$pvalue <- min(1,2*eta)
     
     return(res)
 }
