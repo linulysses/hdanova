@@ -37,7 +37,7 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
     if(any(lo > 0) || any(up < 0)) reject <- TRUE
     else reject <- FALSE
     
-    res <- list(reject=reject,accept=!reject,tau=sci$tau)
+    res <- list(reject=reject,accept=!reject,tau=sci$tau,sci=sci)
     
     if(reject && G > 2)
     {
@@ -64,24 +64,24 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
         lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
         lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
         
-        sig2j <- diag(Sig[[j]])
-        sig2k <- diag(Sig[[k]])
+        sig2j <- sci$sigma2[[j]]
+        sig2k <- sci$sigma2[[k]]
         
-        sigma <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
+        sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
         
         X.bar <- apply(X[[j]],2,mean)
         Y.bar <- apply(X[[k]],2,mean)
         sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
         
-        idx <- (sigma!=0)
+        idx <- (sigjk!=0)
         
-        sigma <- sigma[idx]
+        sigjk <- sigjk[idx]
         
         tmp <- X.bar-Y.bar
         tmp <- tmp[idx]
         
-        zl <- min(zl,min(tmp*sqrt.harm.n/sigma))
-        zu <- max(zu,max(tmp*sqrt.harm.n/sigma))
+        zl <- min(zl,min(tmp*sqrt.harm.n/sigjk))
+        zu <- max(zu,max(tmp*sqrt.harm.n/sigjk))
     }
     
     eta <- mean(sci$Mn.sorted >= zu)

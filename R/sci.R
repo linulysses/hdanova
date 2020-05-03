@@ -62,17 +62,26 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
     n <- nrow(X)
     p <- ncol(X)
     
-    if(is.null(Sig)) Sig <- var(scale(X,scale=F))
-    sigma <- sqrt(diag(Sig))^tau
-    
     rtn <- sqrt(n)
     
     # sample Gaussian vectors
-    W <- MASS::mvrnorm(B,rep(0,p),Sig)
     
+    if(p <= 1000)
+    {
+        if(is.null(Sig)) Sig <- var(scale(X,scale=F))
+        sigm2 <- diag(Sig)
+        sigma <- sqrt(diag(Sig))^tau
+        W <- MASS::mvrnorm(B,rep(0,p),Sig)
+    }
+    else
+    {
+        sigma2 <- apply(X,2,var)
+        sigma <- sqrt(sigma2)^tau
+        xi <- matrix(rnorm(m*B),B,n)
+        W <- (xi %*% X - apply(xi,1,sum) %*% t(apply(X,2,mean))) / sqrt(n)
+    }
     
     # bootstrap max statistic
-    sigma <- sqrt(diag(Sig))^tau 
     idx <- (sigma <= 0)
     S <- W / matrix(sigma,B,p,byrow=T)
     S[,idx] <- 0
@@ -113,7 +122,8 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
                 Mn.sorted=Mn.sorted,
                 Sig=Sig,
                 sigma.tau=sigma,
-                sid=side)
+                sid=side,
+                sigma2=sigma2)
     
     if(side == 'both' || side == 'lower')
     {
@@ -131,54 +141,18 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
 # for more than one sample
 hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
 {
-    # size of each sample
-    ns <- sapply(X,function(x){nrow(x)})
     
-    # dimension
-    p <- ncol(X[[1]])
-    
-    # estimated covariance matrices of each sample if not provided
-    if(is.null(Sig))
-    {
-        Sig <- lapply(X,function(x){var(scale(x,center=TRUE,scale=FALSE))})
-    }
-    
+    ns <- sapply(X,function(x){nrow(x)}) # size of each sample
+    p <- ncol(X[[1]]) # dimension
     n <- sum(ns) # total sample size
     G <- length(X) # number of samples
     
     
-    # sample a Gaussian vector for each sample
-    W <- list()
-    for(g in 1:G)
-    {
-        W[[g]] <- MASS::mvrnorm(B,rep(0,p),Sig[[g]])
-    }
-    
     # bootstrap max statistic
-    Mn <- matrix(0,B,nrow(pairs))
-    Ln <- matrix(0,B,nrow(pairs))
-    for(q in 1:nrow(pairs))
-    {
-        j <- pairs[q,1]
-        k <- pairs[q,2]
-        
-        lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
-        lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
-        
-        sig2j <- diag(Sig[[j]])
-        sig2k <- diag(Sig[[k]])
-        
-        sigma <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
-        S <- (lamj * W[[j]] - lamk * W[[k]]) / matrix(sigma,B,p,byrow=T)
-        idx <- (sigma==0)
-        S[,idx] <- 0
-        Mn[,q] <- apply(S,1,max)
-        Ln[,q] <- apply(S,1,min)
-    }
-    
-    
-    Mn.sorted <- sort(apply(Mn,1,max))
-    Ln.sorted <- sort(apply(Ln,1,min))
+    bres <- bootstrap(X,B,pairs,tau,Sig)
+    Mn.sorted <- bres$Mn.sorted
+    Ln.sorted <- bres$Ln.sorted
+    sigma2 <- bres$sigma2
     
     # construct SCI
     side <- tolower(side)
@@ -208,26 +182,26 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
         lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
         lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
         
-        sig2j <- diag(Sig[[j]])
-        sig2k <- diag(Sig[[k]])
+        sig2j <- sigma2[[j]]
+        sig2k <- sigma2[[k]]
         
-        sigma <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
+        sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
         
         X.bar <- apply(X[[j]],2,mean)
         Y.bar <- apply(X[[k]],2,mean)
         sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
         
-        idx <- (sigma==0)
+        idx <- (sigjk==0)
         
         if(side == 'both' || side == 'lower')
         {
-            tmp <- (X.bar-Y.bar) - Mn.sorted[b2] * sigma / sqrt.harm.n
+            tmp <- (X.bar-Y.bar) - Mn.sorted[b2] * sigjk / sqrt.harm.n
             tmp[idx] <- 0
             sci.lower[[q]] <- tmp
         }
         if(side == 'both' || size == 'upper')
         {
-            tmp <- (X.bar-Y.bar) - Ln.sorted[b1] * sigma / sqrt.harm.n
+            tmp <- (X.bar-Y.bar) - Ln.sorted[b1] * sigjk / sqrt.harm.n
             tmp[idx] <- 0
             sci.upper[[q]] <- tmp
         }
@@ -238,9 +212,9 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
                 Ln.sorted=Ln.sorted,
                 Mn.sorted=Mn.sorted,
                 Sig=Sig,
-                sigma.tau=sigma,
                 sid=side,
-                pairs=pairs)
+                pairs=pairs,
+                sigma2=sigma2)
     
     if(side == 'both' || side == 'lower')
     {
@@ -255,6 +229,79 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
     }
     
     return(res)
+}
+
+# bootstrap
+
+bootstrap <- function(X,B,pairs,tau,Sig)
+{
+    
+    # size of each sample
+    ns <- sapply(X,function(x){nrow(x)})
+    
+    # dimension
+    p <- ncol(X[[1]])
+    
+    n <- sum(ns) # total sample size
+    G <- length(X) # number of samples
+    
+    # bootstrap max statistic
+    Mn <- matrix(0,B,nrow(pairs))
+    Ln <- matrix(0,B,nrow(pairs))
+    
+    if(p <= 1000)
+    {
+        # estimated covariance matrices of each sample if not provided
+        if(is.null(Sig))
+        {
+            Sig <- lapply(X,function(x){var(scale(x,center=TRUE,scale=FALSE))})
+        }
+        
+        # sample a Gaussian vector for each sample
+        W <- list()
+        for(g in 1:G)
+        {
+            W[[g]] <- MASS::mvrnorm(B,rep(0,p),Sig[[g]])
+        }
+        
+        sigma2 <- lapply(Sig,diag)
+        
+    }
+    else
+    {
+        sigma2 <- lapply(X,function(Z) apply(Z,2,var))
+        
+        xi <- lapply(ns,function(m) matrix(rnorm(m*B),B,m))
+        
+        W <- lapply(1:G,function(k){
+            (xi[[k]] %*% X[[k]] - apply(xi[[k]],1,sum) %*% t(apply(X[[k]],2,mean))) / sqrt(ns[k])
+        })
+    }
+    
+    
+    for(q in 1:nrow(pairs))
+    {
+        j <- pairs[q,1]
+        k <- pairs[q,2]
+        
+        lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
+        lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
+        
+        sig2j <- sigma2[[j]] 
+        sig2k <- sigma2[[k]]
+        
+        sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
+        S <- (lamj * W[[j]] - lamk * W[[k]]) / matrix(sigjk,B,p,byrow=T)
+        idx <- (sigjk==0)
+        S[,idx] <- 0
+        Mn[,q] <- apply(S,1,max)
+        Ln[,q] <- apply(S,1,min)
+    }
+    
+    Mn.sorted <- sort(apply(Mn,1,max))
+    Ln.sorted <- sort(apply(Ln,1,min))
+    
+    return(list(Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,sigma2=sigma2))
 }
 
 # select tau 
