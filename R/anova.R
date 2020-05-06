@@ -25,7 +25,9 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
     else if(is.matrix(X)) G <- 1
     else stop('X must be a matrix or a list of matrices')
     
-    sci <- hdsci(X,alpha,'both',tau,B,pairs,Sig,verbose)
+    sciobj <- hdsci(X,alpha,'both',tau,B,pairs,Sig,verbose)
+    
+    sci <- sciobj$sci
     
     lo <- sci$sci.lower
     up <- sci$sci.upper
@@ -37,7 +39,7 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
     if(any(lo > 0) || any(up < 0)) reject <- TRUE
     else reject <- FALSE
     
-    res <- list(reject=reject,accept=!reject,tau=sci$tau,sci=sci)
+    res <- list(reject=reject,accept=!reject,tau=sci$tau,sci=sci,sciobj=sciobj)
     
     if(reject && G > 2)
     {
@@ -49,45 +51,7 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
     
     # compute p-value
     
-    zl <- Inf
-    zu <- -Inf
-    pairs <- sci$pairs
-    Sig <- sci$Sig
-    tau <- sci$tau
-    ns <- sapply(X,function(x){nrow(x)})
-    
-    for(q in 1:nrow(pairs))
-    {
-        j <- pairs[q,1]
-        k <- pairs[q,2]
-        
-        lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
-        lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
-        
-        sig2j <- sci$sigma2[[j]]
-        sig2k <- sci$sigma2[[k]]
-        
-        sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau 
-        
-        X.bar <- apply(X[[j]],2,mean)
-        Y.bar <- apply(X[[k]],2,mean)
-        sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
-        
-        idx <- (sigjk!=0)
-        
-        sigjk <- sigjk[idx]
-        
-        tmp <- X.bar-Y.bar
-        tmp <- tmp[idx]
-        
-        zl <- min(zl,min(tmp*sqrt.harm.n/sigjk))
-        zu <- max(zu,max(tmp*sqrt.harm.n/sigjk))
-    }
-    
-    eta <- mean(sci$Mn.sorted >= zu)
-    eta <- min(eta,mean(sci$Ln.sorted <= zl))
-    
-    res$pvalue <- min(1,2*eta)
+    res$pvalue <- pvalue(X,sci$pairs,sci$sigma2,sci$tau,sci$Mn.sorted,sci$Ln.sorted,B=1000)
     
     return(res)
 }
