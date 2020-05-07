@@ -1,35 +1,5 @@
-#' Create a Fourier basis of K functions in [0, 1]
-#'
-#' @param K A positive integer specifying the number of eigenfunctions to generate.
-#' @param pts A vector specifying the time points to evaluate the basis functions.
-#' @return A K by len(pts) matrix, each column containing a basis function.
-#'
-#' @examples
-#' basis <- create.basis(3)
-#' head(basis)
-#' @keywords internal
-fourier.basis <- function(K,pts = seq(0, 1, length.out = 50)) 
-{
-    nGrid <- length(pts)
-    
-    stopifnot(is.numeric(K) && length(K) == 1 && K > 0)
-
-        res <- sapply(seq_len(K), function(k)
-            if (k == 1) {
-                rep(1, nGrid)
-            } else if (k %% 2 == 0) {
-                sqrt(2) * sin(k * pi * pts)
-            } else {
-                sqrt(2) * cos((k - 1) * pi * pts)
-            })
-        
-    res <- matrix(res, ncol = K) # prevent single length pts
-    res
-}
-
-
-#' Hypothesis test for high-dimensional data
-#' @description Test the mean or differences of means of high-dimensional vectors are zero or not
+#' Hypothesis test for densely and relgaruly observed functional data
+#' @description Test the mean or differences of means of functional data are zero or not
 #' @param X a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows; equal spacing is assumed when \code{transform} is TRUE
 #' @param alpha significance level
 #' @param tau the decay parameter, automatically selected if set to \code{NULL}
@@ -77,3 +47,36 @@ fdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,transform=T,K=50,verb
     
     return(hdtest(X,alpha=alpha,tau=tau,B=B,pairs=pairs,verbose=verbose))
 }
+
+
+
+
+#' Create a Fourier basis of K functions in [0, 1]
+#'
+#' @param K A positive integer specifying the number of eigenfunctions to generate.
+#' @param pts A vector specifying the time points to evaluate the basis functions.
+#' @return A K by len(pts) matrix, each column containing a basis function.
+#'
+#' @examples
+#' basis <- fourier.basis(3)
+#' head(basis)
+#' @keywords internal
+fourier.basis <- function(K,pts = seq(0, 1, length.out = 50)) 
+{
+    nGrid <- length(pts)
+    
+    stopifnot(is.numeric(K) && length(K) == 1 && K > 0)
+
+        res <- sapply(seq_len(K), function(k)
+            if (k == 1) {
+                rep(1, nGrid)
+            } else if (k %% 2 == 0) {
+                sqrt(2) * sin(k * pi * pts)
+            } else {
+                sqrt(2) * cos((k - 1) * pi * pts)
+            })
+        
+    res <- matrix(res, ncol = K) # prevent single length pts
+    res
+}
+

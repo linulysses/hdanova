@@ -18,7 +18,7 @@ A K by len(pts) matrix, each column containing a basis function.
 Create a Fourier basis of K functions in [0, 1]
 }
 \examples{
-basis <- create.basis(3)
+basis <- fourier.basis(3)
 head(basis)
 }
 \keyword{internal}

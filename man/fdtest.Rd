@@ -2,7 +2,7 @@
 % Please edit documentation in R/fdanova.R
 \name{fdtest}
 \alias{fdtest}
-\title{Hypothesis test for high-dimensional data}
+\title{Hypothesis test for densely and relgaruly observed functional data}
 \usage{
 fdtest(X, alpha = 0.05, tau = NULL, B = 1000, pairs = NULL,
   transform = T, K = 50, verbose = F)
@@ -26,7 +26,7 @@ fdtest(X, alpha = 0.05, tau = NULL, B = 1000, pairs = NULL,
 a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
 }
 \description{
-Test the mean or differences of means of high-dimensional vectors are zero or not
+Test the mean or differences of means of functional data are zero or not
 }
 \examples{
 # simulate a dataset of 4 samples
