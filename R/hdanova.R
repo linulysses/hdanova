@@ -14,10 +14,10 @@
 #' \insertRef{Lin2020}{hdanova}
 #' @examples
 #' # simulate a dataset of 4 samples
-#' X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0,10),diag((1:10)^(-0.5*g))))
+#' X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0.3*g,10),diag((1:10)^(-0.5*g))))
 #' 
 #' # test for the equality of mean vectors with pairs={(1,3),(2,4)}
-#' hdtest(X,alpha=0.05,pairs=matrix(1:4,2,2))$reject
+#' hdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6))$reject
 #' @export
 hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
 {
@@ -41,12 +41,19 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
     
     res <- list(reject=reject,accept=!reject,tau=sci$tau,sci=sci,sciobj=sciobj)
     
-    if(reject && G > 2)
+    if(G > 2)
     {
         rej.idx <- sapply(sci$sci.lower,function(z) any(z>0)) |
             sapply(sci$sci.upper, function(z) any(z<0))
-        rej.pairs <- sci$pairs[which(rej.idx==1),]
-        res$rej.pairs <- rej.pairs
+        if(reject)
+        {
+            rej.pairs <- sci$pairs[rej.idx,]
+            res$rej.pairs <- rej.pairs
+        }
+        
+        tmp <- cbind(sci$pairs,rej.idx)
+        colnames(tmp) <- c('g1','g2','reject')
+        res$pairs <- tmp
     }
     
     # compute p-value

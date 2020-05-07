@@ -401,6 +401,12 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
         zu <- -Inf
         ns <- sapply(X,function(x){nrow(x)})
         
+        if(!is.list(Mn.sorted))
+        {
+            Mn.sorted <- list(Mn.sorted)
+            Ln.sorted <- list(Ln.sorted)
+        }
+        
         pval <- sapply(1:length(tau), function(v){
             
             for(q in 1:nrow(pairs))

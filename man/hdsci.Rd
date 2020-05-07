@@ -14,7 +14,7 @@ hdsci(X, alpha = 0.05, side = "both", tau = NULL, B = 1000,
 
 \item{side}{either of \code{c('lower','upper', or 'both')}. default value is 'both'}
 
-\item{tau}{the decay parameter, automatically selected if set to \code{NULL}}
+\item{tau}{the decay parameter, automatically selected if set to \code{NULL} or multiple values are provided}
 
 \item{B}{the number of bootstrap replicates}
 
@@ -34,7 +34,7 @@ Construct (1-\code{alpha}) simultaneous confidence interval (SCI)  for the mean 
 X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0,10),diag((1:10)^(-0.5*g))))
 
 # construct SCIs for the mean vectors with pairs={(1,3),(2,4)}
-hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))
+hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))$sci
 }
 \references{
 \insertRef{Lopes2019+}{hdanova}
