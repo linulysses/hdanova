@@ -250,7 +250,7 @@ bootstrap <- function(X,B,pairs,tau,Sig)
         if(p <= 100)
         {
             if(is.null(Sig)) Sig <- var(scale(X,scale=F))
-            sigm2 <- diag(Sig)
+            sigma2 <- diag(Sig)
             W <- MASS::mvrnorm(B,rep(0,p),Sig)
         }
         else
