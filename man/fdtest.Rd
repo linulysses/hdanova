@@ -4,8 +4,16 @@
 \alias{fdtest}
 \title{Hypothesis test for densely and relgaruly observed functional data}
 \usage{
-fdtest(X, alpha = 0.05, tau = NULL, B = 1000, pairs = NULL,
-  transform = T, K = 50, verbose = F)
+fdtest(
+  X,
+  alpha = 0.05,
+  tau = NULL,
+  B = 1000,
+  pairs = NULL,
+  transform = T,
+  K = 50,
+  verbose = F
+)
 }
 \arguments{
 \item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows; equal spacing is assumed when \code{transform} is TRUE}

@@ -256,7 +256,7 @@ bootstrap <- function(X,B,pairs,tau,Sig)
         else
         {
             sigma2 <- apply(X,2,var)
-            xi <- matrix(rnorm(m*B),B,n)
+            xi <- matrix(rnorm(n*B),B,n)
             W <- (xi %*% X - apply(xi,1,sum) %*% t(apply(X,2,mean))) / sqrt(n)
         }
         

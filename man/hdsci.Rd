@@ -4,8 +4,16 @@
 \alias{hdsci}
 \title{Simultaneous confidence interval (SCI) for high-dimensional data}
 \usage{
-hdsci(X, alpha = 0.05, side = "both", tau = NULL, B = 1000,
-  pairs = NULL, Sig = NULL, verbose = F)
+hdsci(
+  X,
+  alpha = 0.05,
+  side = "both",
+  tau = NULL,
+  B = 1000,
+  pairs = NULL,
+  Sig = NULL,
+  verbose = F
+)
 }
 \arguments{
 \item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows}

@@ -4,8 +4,15 @@
 \alias{hdtest}
 \title{Hypothesis test for high-dimensional data}
 \usage{
-hdtest(X, alpha = 0.05, tau = NULL, B = 1000, pairs = NULL,
-  Sig = NULL, verbose = F)
+hdtest(
+  X,
+  alpha = 0.05,
+  tau = NULL,
+  B = 1000,
+  pairs = NULL,
+  Sig = NULL,
+  verbose = F
+)
 }
 \arguments{
 \item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows}
