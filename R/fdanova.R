@@ -10,7 +10,7 @@
 #' @return a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
 #' @importFrom Rdpack reprompt
 #' @references 
-#' \insertRef{Lopes2019+}{hdanova}
+#' \insertRef{Lopes2020}{hdanova}
 #' 
 #' \insertRef{Lin2020}{hdanova}
 #' @examples

@@ -7,10 +7,12 @@
 #' @param B the number of bootstrap replicates
 #' @param pairs a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations for which the SCI are constructed, and if set to \code{NULL}, SCIs for all pairs are constructed.
 #' @param Sig a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}
+#' @param verbose whether output diagnostic information or report progress
+#' @param tau.method the method to select tau; possible values are 'MGB' (default) and 'WB'
 #' @return a list of the following objects: \code{sci.lower} (\code{sci.upper}) is a vector (one- or two-sample) or a list of vectors (three or more samples) specifying the lower (upper) bound of SCI for the mean (one sample) or the difference of means of each pair of samples; when number of samples is larger than two, \code{pairs} is a matrix of two columns, each row containing the a pair of indices of samples whose SCI is constructed
 #' @importFrom Rdpack reprompt
 #' @references 
-#' \insertRef{Lopes2019+}{hdanova}
+#' \insertRef{Lopes2020}{hdanova}
 #' 
 #' \insertRef{Lin2020}{hdanova}
 #' @examples  
@@ -20,11 +22,11 @@
 #' # construct SCIs for the mean vectors with pairs={(1,3),(2,4)}
 #' hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))$sci
 #' @export
-hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F)
+hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,verbose=F,tau.method='MGB')
 {
     if(is.matrix(X)) # one-sample
     {
-        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose)
+        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose,tau.method)
         return(sci)
     }
     else if(is.list(X))
@@ -32,7 +34,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,v
         K <- length(X)
         # now 2 or more samples
         if(is.null(pairs)) pairs <- t(combn(1:K,2))
-        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose)
+        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
         return(sci)
     }
     else stop('X must be matrix or a list')
@@ -40,7 +42,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=1000,pairs=NULL,Sig=NULL,v
 }
 
 # for one sample
-hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
+hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
 {
     n <- nrow(X)
     p <- ncol(X)
@@ -104,7 +106,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
                 sci.tau=sci.tau)
     
     if(length(tau) > 1){
-        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B)
+        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method)
         v <- which(tau==selected.tau)
         res$sci <- sci.tau[[v]]
         res$selected.tau <- selected.tau
@@ -119,7 +121,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose)
 }
 
 # for more than one sample
-hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
+hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
 {
     
     ns <- sapply(X,function(x){nrow(x)}) # size of each sample
@@ -219,7 +221,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
                 sci.tau=sci.tau)
     
     if(length(tau) > 1){
-        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B)
+        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method)
         v <- which(tau==selected.tau)
         res$sci <- sci.tau[[v]]
         res$selected.tau <- selected.tau
@@ -234,7 +236,6 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose)
 }
 
 # bootstrap
-
 bootstrap <- function(X,B,pairs,tau,Sig)
 {
     
@@ -358,6 +359,7 @@ bootstrap <- function(X,B,pairs,tau,Sig)
     return(list(Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,sigma2=sigma2,W=W))
 }
 
+# compute p-values for each candidate value of tau
 pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
 {
     if(is.null(Mn.sorted))
@@ -368,6 +370,11 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
         Ln.sorted <- bs$Ln.sorted
     }
     
+    # only true if length(tau)==1
+    if(!is.list(Mn.sorted)) Mn.sorted <- lapply(1:length(tau), function(v) Mn.sorted)
+    if(!is.list(Ln.sorted)) Ln.sorted <- lapply(1:length(tau), function(v) Ln.sorted)
+    
+    # for one-sample
     if(is.matrix(X))
     {
         zl <- Inf
@@ -395,7 +402,7 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
             pval.v
         })
     }
-    else
+    else # for multiple-sample
     {
         zl <- Inf
         zu <- -Inf
@@ -450,9 +457,105 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
     pval
 }
 
+# generate a zero-mean gaussian sample of size n with X's covariance matrix
+mgauss <- function(X,n,Sig=NULL)
+{
+    p <- ncol(X)
+    
+    if(p <= 100)
+    {
+        if(is.null(Sig)) Sig <- var(scale(X,scale=F))
+        W <- MASS::mvrnorm(n,rep(0,p),Sig)
+    }
+    else
+    {
+        xi <- matrix(rnorm(n*n),n,n)
+        W <- (xi %*% X - apply(xi,1,sum) %*% t(apply(X,2,mean))) / sqrt(n)
+    }
+    W
+}
 
-# select tau
-hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B)
+hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
+{
+    if(method %in% c('MGB','MGBA'))
+        hdsci.tau.MGB(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
+    else if(method == 'WB')
+        hdsci.tau.WB(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B)
+    else stop(paste0('unsupported method:',method))
+}
+
+# select tau via resampling fron Gaussian with data covariance
+hdsci.tau.MGB <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
+{
+    B0 <- 10 * floor(1/alpha)
+    
+    margin <- 0.01
+    pv <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
+    
+    if(is.matrix(X))
+    {
+        X <- scale(X,scale=F)
+        n <- nrow(X)
+        test <- sapply(1:B0, function(j)
+        {
+            Y <- mgauss(X,n,NULL)
+            pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+        })
+    }
+    else
+    {
+        X <- lapply(X,function(z) scale(z,scale=F))
+        ns <- sapply(X,function(x){nrow(x)})
+        N <- sum(ns)
+        test <- sapply(1:B0, function(j)
+        {
+            Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
+            pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+        })
+    }
+    
+    rej <- test <= alpha
+    size <- apply(rej,1,mean)
+    
+    if(method == 'MGB')
+    {
+        s <- abs(size-alpha)
+        smin <- min(s)
+        
+        # those with empirical size closest to alpha are "good" candidate tau values
+        # allow a margin to account for computer finite-precision
+        idx <- which( abs(s-smin) < margin*alpha) 
+    }
+    else # MGBA: aggressive version of MGB, considering all candidate values with empirical size lower than alpha whenever possible
+    {
+        # no empirical sizes lower than alpha
+        if(all(size > (1+margin)*alpha) == 0)
+        {
+            idx <- which(size==min(size))
+        }
+        else # those with empirical size lower than alpha are "good" candidate values
+        {
+            idx <- which(size <= (1+margin)*alpha)
+        }
+    }
+    
+    # consider only good candidate values
+    pv[-idx] <- Inf 
+    
+    # now select tau to minimize p-value
+    # when there are multiple such tau values, take the mean of them
+    tau0 <- mean(tau[which(pv==min(pv))]) 
+    
+    # If tau0 is the mean of two or more candidate values,
+    # then tau0 might not be in the prescribed list
+    # In this case, we select a tau in the list that is closest to tau0
+    tau[which.min(abs(tau-tau0))] 
+}
+
+
+
+# select tau via resampling from the original data
+hdsci.tau.WB <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B)
 {
     pv <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
     
