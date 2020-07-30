@@ -2,39 +2,72 @@
 % Please edit documentation in R/sci.R
 \name{hdsci}
 \alias{hdsci}
-\title{Simultaneous confidence interval (SCI) for high-dimensional data}
+\title{Construct Simultaneous Confidence Interval}
 \usage{
 hdsci(
   X,
   alpha = 0.05,
   side = "both",
   tau = NULL,
-  B = 1000,
+  B = ceiling(50/alpha),
   pairs = NULL,
   Sig = NULL,
-  verbose = F
+  verbose = F,
+  tau.method = "MGB"
 )
 }
 \arguments{
-\item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows}
+\item{X}{a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing an observation.}
 
-\item{alpha}{significance level}
+\item{alpha}{significance level; default value: 0.05.}
 
-\item{side}{either of \code{c('lower','upper', or 'both')}. default value is 'both'}
+\item{side}{either of \code{c('lower','upper', or 'both')}; default value: 'both'.}
 
-\item{tau}{the decay parameter, automatically selected if set to \code{NULL} or multiple values are provided}
+\item{tau}{a real number in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
 
-\item{B}{the number of bootstrap replicates}
+\item{B}{the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.}
 
-\item{pairs}{a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations for which the SCI are constructed, and if set to \code{NULL}, SCIs for all pairs are constructed.}
+\item{pairs}{a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.}
 
-\item{Sig}{a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}}
+\item{Sig}{a matrix (one-sample) or a list of matrices (multiple-samples), each of which is the covariance matrix of a sample; default value: \code{NULL}, so that it is automatically estimated from data.}
+
+\item{verbose}{TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.}
+
+\item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see details).}
 }
 \value{
-a list of the following objects: \code{sci.lower} (\code{sci.upper}) is a vector (one- or two-sample) or a list of vectors (three or more samples) specifying the lower (upper) bound of SCI for the mean (one sample) or the difference of means of each pair of samples; when number of samples is larger than two, \code{pairs} is a matrix of two columns, each row containing the a pair of indices of samples whose SCI is constructed
+a list of the following objects: 
+     \describe{
+         \item{\code{sci}}{the constructed SCI, which is a list of the following objects:
+             \describe{
+                 \item{\code{sci.lower}}{a vector (when <= two samples) or a list of vectors (when >= 3 samples) specifying the lower bound of the SCI for the mean (one-sample) or the difference of means of each pair of samples.}
+                 \item{\code{sci.upper}}{a vector (when <= two samples) or a list of vectors (when >= 3 samples) specifying the upper bound of the SCI.}
+                 \item{\code{pairs}}{a matrix of two columns, each row containing the a pair of indices of samples of which the SCI of the difference in mean is constructed.}
+                 \item{\code{tau}}{the decay parameter that is used to construct the SCI.}
+                 \item{\code{Mn.sorted}}{the sorted (in increasing order) bootstrapped max statistic.}
+                 \item{\code{Ln.sorted}}{the sorted (in increasing order) bootstrapped min statistic.}
+                 \item{\code{side}}{the input \code{side}.}
+                 \item{\code{sigma2}}{a vector of variances for each coordinate.}
+             }
+         }
+         \item{\code{tau}}{a vector of candidate values of the decay parameter.}
+         \item{\code{sci.tau}}{a list of \code{sci} objects corresponding to the candidate values in \code{tau}.}
+         \item{\code{selected.tau}}{the selected value of the decay parameter from \code{tau}.}
+         \item{\code{Sig}}{the sample covariance matrix (if it is computed).}
+         }
 }
 \description{
-Construct (1-\code{alpha}) simultaneous confidence interval (SCI)  for the mean or difference of means of high-dimensional vectors
+Construct (1-\code{alpha}) simultaneous confidence interval (SCI)  for the mean or difference of means of high-dimensional vectors.
+}
+\details{
+Four methods to select the decay parameter \code{tau} are provided. Using the fact that a SCI is equivalent to a hypothesis test problem, all of them first identify a set of good candidates which give rise to test that respects the specified level \code{alpha}, and then select a candidate that minimizes the p-value. These methods differ in how to identify the good candidates.
+    \describe{
+        \item{\code{MGB}}{for this method, conditional on the data \code{X}, \code{B0=10*ceiling(1/alpha)} i.i.d. zero-mean multivariate Gaussian samples (called MGB samples here) are drawn, where the covariance of each sample is equal to the sample covariance matrix \code{Sig} of the data \code{X}. For each candidate value in \code{tau}, 1) the empirical distribution of the corresponding max/min statistic is obtained by reusing the same bootstrapped sample, 2) the corresponding p-value is obtained, and 3) the size is estimated by applying the test to all MGB samples. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
+        \item{\code{MGBA}}{an slightly more aggressive version of \code{MGB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}    
+        \item{\code{WB}}{for this method, conditional on \code{X}, \code{B0=10*ceiling(1/alpha)} i.i.d. samples (called WB samples here) are drawn by resampling \code{X} with replacement. For each candidate value in \code{tau}, 1) the corresponding p-value is obtained, and 2) the size is estimated by applying the test to all WB samples without reusing the bootstrapped sample. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
+        \item{\code{WBA}}{an slightly more aggressive version of \code{WB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}
+    }
+    Among these methods, MGB and MGBA are recommended, since they are computationally more efficiently and often yield good performance. The MGBA might have slightly larger empirical size. The WB and WBA methods may be subject to outliers, in which case they become more conservative.
 }
 \examples{
  
@@ -45,7 +78,7 @@ X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0,10),diag((1:10)^(-0.5*g))))
 hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))$sci
 }
 \references{
-\insertRef{Lopes2019+}{hdanova}
+\insertRef{Lopes2020}{hdanova}
 
 \insertRef{Lin2020}{hdanova}
 }

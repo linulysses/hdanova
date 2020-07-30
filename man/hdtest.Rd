@@ -8,27 +8,40 @@ hdtest(
   X,
   alpha = 0.05,
   tau = NULL,
-  B = 1000,
+  B = ceiling(50/alpha),
   pairs = NULL,
   Sig = NULL,
-  verbose = F
+  verbose = F,
+  tau.method = "MGB"
 )
 }
 \arguments{
-\item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows}
+\item{X}{a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing an observation.}
 
-\item{alpha}{significance level}
+\item{alpha}{significance level; default value: 0.05.}
 
-\item{tau}{the decay parameter, automatically selected if set to \code{NULL}}
+\item{tau}{a real number in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
 
-\item{B}{the number of bootstrap replicates}
+\item{B}{the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.}
 
-\item{pairs}{a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations whose means are compared, and if set to \code{NULL}, comparisons for all pairs are performed}
+\item{pairs}{a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.}
 
-\item{Sig}{a matrix (one sample) or a list of matrices, each of them is the covariance matrix of a sample and automatically estimated if \code{NULL}}
+\item{Sig}{a matrix (one-sample) or a list of matrices (multiple-samples), each of which is the covariance matrix of a sample; default value: \code{NULL}, so that it is automatically estimated from data.}
+
+\item{verbose}{TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.}
+
+\item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
+
+\item{side}{either of \code{c('lower','upper', or 'both')}; default value: 'both'.}
 }
 \value{
-a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
+a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
+     \describe{
+         \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
+         \item{\code{accept}}{a T/F value indicating whether the hypothesis is rejected.}
+         \item{\code{rej.paris}}{optionally gives the pairs of samples that lead to rejection.}
+         \item{\code{pvalue}}{the p-value of the test.}
+         }
 }
 \description{
 Test the mean or differences of means of high-dimensional vectors are zero or not
@@ -41,7 +54,7 @@ X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0.3*g,10),diag((1:10)^(-0.5*g)
 hdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6))$reject
 }
 \references{
-\insertRef{Lopes2019+}{hdanova}
+\insertRef{Lopes2020}{hdanova}
 
 \insertRef{Lin2020}{hdanova}
 }

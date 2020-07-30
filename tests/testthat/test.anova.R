@@ -13,6 +13,7 @@ test_that("check routines in anova.R", {
     X <- MASS::mvrnorm(n,mu,Sig)
     res <- hdtest(X,alpha,tau.method='MGB')
     expect_true(!res$reject)
+    expect_true(res$pvalue >= alpha)
     
     
     
@@ -25,6 +26,7 @@ test_that("check routines in anova.R", {
     X <- MASS::mvrnorm(n,mu,Sig)
     res <- hdtest(X,alpha,tau.method='MGBA')
     expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
     
     
     
@@ -37,6 +39,7 @@ test_that("check routines in anova.R", {
     X <- lapply(1:G,function(g) MASS::mvrnorm(n[g],mu[[g]],Sig[[g]]))
     res <- hdtest(X,alpha,tau.method='WB')
     expect_true(!res$reject)
+    expect_true(res$pvalue >= alpha)
     
     
     # 3-sample, power of test
@@ -48,4 +51,5 @@ test_that("check routines in anova.R", {
     X <- lapply(1:G,function(g) MASS::mvrnorm(n[g],mu[[g]],Sig[[g]]))
     res <- hdtest(X,alpha)
     expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
 })

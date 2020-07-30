@@ -50,7 +50,7 @@ res$pvalue
 res$tau
 }
 \references{
-\insertRef{Lopes2019+}{hdanova}
+\insertRef{Lopes2020}{hdanova}
 
 \insertRef{Lin2020}{hdanova}
 }
