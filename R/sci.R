@@ -3,12 +3,12 @@
 #' @param X a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing an observation.
 #' @param alpha significance level; default value: 0.05.
 #' @param side either of \code{'lower','upper', or 'both'}; default value: 'both'.
-#' @param tau a real number in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}
+#' @param tau real number(s) in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}
 #' @param B the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.
 #' @param pairs a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.
 #' @param Sig a matrix (one-sample) or a list of matrices (multiple-samples), each of which is the covariance matrix of a sample; default value: \code{NULL}, so that it is automatically estimated from data.
 #' @param verbose TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.
-#' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see details).
+#' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'RMGB', 'RMGBA', 'WB' and 'WBA' (see details).
 #' @return a list of the following objects: 
 #'      \describe{
 #'          \item{\code{sci}}{the constructed SCI, which is a list of the following objects:
@@ -32,10 +32,12 @@
 #'     \describe{
 #'         \item{\code{MGB}}{for this method, conditional on the data \code{X}, \code{B0=10*ceiling(1/alpha)} i.i.d. zero-mean multivariate Gaussian samples (called MGB samples here) are drawn, where the covariance of each sample is equal to the sample covariance matrix \code{Sig} of the data \code{X}. For each candidate value in \code{tau}, 1) the empirical distribution of the corresponding max/min statistic is obtained by reusing the same bootstrapped sample, 2) the corresponding p-value is obtained, and 3) the size is estimated by applying the test to all MGB samples. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
 #'         \item{\code{MGBA}}{an slightly more aggressive version of \code{MGB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}    
+#'         \item{\code{RMGB}}{this method is similar to \code{MGB}, except that for each MGB sample, the covariance matrix is the sample covariance matrix of a resampled (with replacement) data \code{X}.}
+#'         \item{\code{RMGBA}}{an slightly more aggressive version of \code{RMGB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}
 #'         \item{\code{WB}}{for this method, conditional on \code{X}, \code{B0=10*ceiling(1/alpha)} i.i.d. samples (called WB samples here) are drawn by resampling \code{X} with replacement. For each candidate value in \code{tau}, 1) the corresponding p-value is obtained, and 2) the size is estimated by applying the test to all WB samples without reusing the bootstrapped sample. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
 #'         \item{\code{WBA}}{an slightly more aggressive version of \code{WB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}
 #'     }
-#'     Among these methods, MGB and MGBA are recommended, since they are computationally more efficiently and often yield good performance. The MGBA might have slightly larger empirical size. The WB and WBA methods may be subject to outliers, in which case they become more conservative. 
+#'     Among these methods, MGB and MGBA are recommended, since they are computationally more efficiently and often yield good performance. The MGBA might have slightly larger empirical size. The WB and WBA methods may be subject to outliers, in which case they become more conservative. The RMGB is computationally slightly slower than WB, but is less subject to outliers.
 #' @importFrom Rdpack reprompt
 #' @references 
 #' \insertRef{Lopes2020}{hdanova}
@@ -70,6 +72,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NU
 }
 
 # for one sample
+# if tau.method==NULL, then no selection of tau is made
 hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
 {
     n <- nrow(X)
@@ -132,22 +135,26 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
                 pairs=NULL,
                 sci.tau=sci.tau)
     
-    if(length(tau) > 1){
-        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
-        v <- which(tau==selected.tau)
-        res$sci <- sci.tau[[v]]
-        res$selected.tau <- selected.tau
-    } 
-    else
+    if(!is.null(tau.method))
     {
-        res$sci <- sci.tau[[1]]
-        res$selected.tau <- res$tau
+        if(length(tau) > 1){
+            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
+            v <- which(tau==selected.tau)
+            res$sci <- sci.tau[[v]]
+            res$selected.tau <- selected.tau
+        } 
+        else
+        {
+            res$sci <- sci.tau[[1]]
+            res$selected.tau <- res$tau
+        }
     }
-    
+
     return(res)
 }
 
 # for more than one sample
+# if tau.method==NULL, then no selection of tau is made
 hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
 {
     
@@ -245,17 +252,20 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
                 pairs=pairs,
                 sigma2=sigma2,
                 sci.tau=sci.tau)
-    
-    if(length(tau) > 1){
-        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
-        v <- which(tau==selected.tau)
-        res$sci <- sci.tau[[v]]
-        res$selected.tau <- selected.tau
-    } 
-    else
+    if(!is.null(tau.method))
     {
-        res$sci <- sci.tau[[1]]
-        res$selected.tau <- res$tau
+        
+        if(length(tau) > 1){
+            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
+            v <- which(tau==selected.tau)
+            res$sci <- sci.tau[[v]]
+            res$selected.tau <- selected.tau
+        } 
+        else
+        {
+            res$sci <- sci.tau[[1]]
+            res$selected.tau <- res$tau
+        }
     }
     
     return(res)
@@ -544,63 +554,46 @@ inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,L
 
     pval <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
     
-    if(method %in% c('MGB','MGBA'))
+    if(method %in% c('RMGB','RMGBA','WB','WBA'))
     {
-        if(is.matrix(X))
-        {
-            X <- scale(X,scale=F)
-            n <- nrow(X)
-            test <- sapply(1:B0, function(j)
-            {
-                Y <- mgauss(X,n,NULL)
-                pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-            })
-        }
-        else
-        {
-            X <- lapply(X,function(z) scale(z,scale=F))
-            ns <- sapply(X,function(x){nrow(x)})
-            N <- sum(ns)
-            test <- sapply(1:B0, function(j)
-            {
-                Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
-                pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-            })
-        }
+        size <- size.tau(X,tau,alpha,B,pairs,verbose,R=B0,method='RMGB')
     }
-    else if(method %in% c('WB','WBA'))
+    else # in order to resuse Mn.sorted, etc, we do not use size.tau function
     {
-        if(is.matrix(X))
-        {
-            X <- scale(X,scale=F)
-            n <- nrow(X)
-            test <- sapply(1:B0, function(j)
+            if(is.matrix(X))
             {
-                Y <- X[sample(1:n,n,replace=T),]
-                pvalue(Y,pairs,NULL,tau,NULL,NULL,B=B)
-            })
-        }
-        else
-        {
-            X <- lapply(X,function(z) scale(z,scale=F))
-            ns <- sapply(X,function(x){nrow(x)})
-            N <- sum(ns)
-            test <- sapply(1:B0, function(j)
+                X <- scale(X,scale=F)
+                n <- nrow(X)
+                test <- sapply(1:B0, function(j)
+                {
+                    Y <- mgauss(X,n,NULL)
+                    pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+                })
+            }
+            else
             {
-                Y <- lapply(X, function(z) z[sample(1:nrow(z),nrow(z),replace=T),])
-                pvalue(Y,pairs,NULL,tau,NULL,NULL,B=B)
-            })
-        }
+                X <- lapply(X,function(z) scale(z,scale=F))
+                ns <- sapply(X,function(x){nrow(x)})
+    
+                test <- sapply(1:B0, function(j)
+                {
+                    Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
+                    pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+                })
+            }
+        
+        
+            rej <- test <= alpha
+            size <- apply(rej,1,mean)
     }
         
-    rej <- test <= alpha
-    size <- apply(rej,1,mean)
+    
         
     list(size=size,pval=pval,tau=tau)
 }
 
 
-
+# choose tau based on the estimated size and calculuated p-values
 choose.tau <- function(alpha,tau,size,pv,mod='C',margin=0.01)
 {
     if(mod == 'C')

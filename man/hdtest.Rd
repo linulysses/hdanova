@@ -2,7 +2,7 @@
 % Please edit documentation in R/hdanova.R
 \name{hdtest}
 \alias{hdtest}
-\title{Hypothesis test for high-dimensional data}
+\title{Hypothesis Test for High-dimensional Data}
 \usage{
 hdtest(
   X,
@@ -20,7 +20,7 @@ hdtest(
 
 \item{alpha}{significance level; default value: 0.05.}
 
-\item{tau}{a real number in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
+\item{tau}{real number(s) in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
 
 \item{B}{the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.}
 
@@ -31,8 +31,6 @@ hdtest(
 \item{verbose}{TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.}
 
 \item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
-
-\item{side}{either of \code{c('lower','upper', or 'both')}; default value: 'both'.}
 }
 \value{
 a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
@@ -44,7 +42,7 @@ a list that includes all objects returned by \code{\link{hdsci}} and the followi
          }
 }
 \description{
-Test the mean or differences of means of high-dimensional vectors are zero or not
+Test the mean or differences of means of high-dimensional vectors are zero or not.
 }
 \examples{
 # simulate a dataset of 4 samples

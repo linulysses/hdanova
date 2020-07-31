@@ -2,43 +2,55 @@
 % Please edit documentation in R/fdanova.R
 \name{fdtest}
 \alias{fdtest}
-\title{Hypothesis test for densely and relgaruly observed functional data}
+\title{Hypothesis Test for Densely and Regularly Observed Functional Data}
 \usage{
 fdtest(
   X,
   alpha = 0.05,
   tau = NULL,
-  B = 1000,
+  B = ceiling(50/alpha),
   pairs = NULL,
   transform = T,
   K = 50,
-  verbose = F
+  verbose = F,
+  tau.method = "MGB",
+  basis = "fourier"
 )
 }
 \arguments{
-\item{X}{a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows; equal spacing is assumed when \code{transform} is TRUE}
+\item{X}{a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing observations from a function.}
 
-\item{alpha}{significance level}
+\item{alpha}{significance level; default value: 0.05.}
 
-\item{tau}{the decay parameter, automatically selected if set to \code{NULL}}
+\item{tau}{real number(s) in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
 
-\item{B}{the number of bootstrap replicates}
+\item{B}{the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.}
 
-\item{pairs}{a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations whose means are compared, and if set to \code{NULL}, comparisons for all pairs are performed}
+\item{pairs}{a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.}
 
-\item{transform}{TRUE/FALSE, whether to transform the data into frequency domain via Fourier basis}
+\item{transform}{TRUE/FALSE, whether to transform the data into frequency domain via a basis; default: TRUE.}
 
-\item{K}{a positive integer, the number of bais functions for transforming the data when \code{transform} is TRUE}
+\item{K}{a positive integer specifying the number of basis functions for transforming the data when \code{transform} is TRUE.}
+
+\item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
+
+\item{basis}{basis for transformation, for which possible options are \code{'fourier'} and \code{'eigen'}; default value: \code{'eigen'}.}
 }
 \value{
-a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
+a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
+     \describe{
+         \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
+         \item{\code{accept}}{a T/F value indicating whether the hypothesis is rejected.}
+         \item{\code{rej.paris}}{optionally gives the pairs of samples that lead to rejection.}
+         \item{\code{pvalue}}{the p-value of the test.}
+         }
 }
 \description{
-Test the mean or differences of means of functional data are zero or not
+Test the mean or differences in means of functional data are zero or not.
 }
 \examples{
 # simulate a dataset of 4 samples
-X <- lapply(1:4, function(g) synfd::dense.fd(mu=0.05*g, X=synfd::gaussian.process(), n=30, m=50))
+X <- lapply(1:4, function(g) synfd::reg.fd(mu=0.05*g, X=synfd::gaussian.process(), n=30, m=50)$y)
 
 # test for the equality of mean vectors with pairs={(1,3),(2,4)}
 res <- fdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6))
@@ -47,7 +59,7 @@ res <- fdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6))
 res$pvalue 
 
 # get selected tau
-res$tau
+res$selected.tau
 }
 \references{
 \insertRef{Lopes2020}{hdanova}

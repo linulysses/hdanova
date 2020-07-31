@@ -2,7 +2,7 @@
 #' @description Test the mean or differences in means of functional data are zero or not.
 #' @param X a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing observations from a function.
 #' @param alpha significance level; default value: 0.05.
-#' @param tau a real number in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}
+#' @param tau real number(s) in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}
 #' @param B the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.
 #' @param pairs a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.
 #' @param transform TRUE/FALSE, whether to transform the data into frequency domain via a basis; default: TRUE.

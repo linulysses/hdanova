@@ -3,4 +3,5 @@
 export(fdtest)
 export(hdsci)
 export(hdtest)
+export(size.tau)
 importFrom(Rdpack,reprompt)
