@@ -133,7 +133,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
                 sci.tau=sci.tau)
     
     if(length(tau) > 1){
-        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method)
+        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
         v <- which(tau==selected.tau)
         res$sci <- sci.tau[[v]]
         res$selected.tau <- selected.tau
@@ -247,7 +247,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
                 sci.tau=sci.tau)
     
     if(length(tau) > 1){
-        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method)
+        selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
         v <- which(tau==selected.tau)
         res$sci <- sci.tau[[v]]
         res$selected.tau <- selected.tau
@@ -501,50 +501,105 @@ mgauss <- function(X,n,Sig=NULL)
     W
 }
 
-hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
+hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method,verbose)
 {
-    if(method %in% c('MGB','MGBA'))
-        hdsci.tau.MGB(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
-    else if(method %in% c('WB','WBA'))
-        hdsci.tau.WB(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
-    else stop(paste0('unsupported method:',method))
+
+    B0 <- 25 * ceiling(1/alpha)
+    if(method %in% c('WB','WBA')) B0 <- 100
+    
+    D <- inspect.tau(X,tau,alpha=alpha,pairs=pairs,sigma2=sigma2,
+                     Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,
+                     B=B,B0=B0,method=method)
+
+    selected.tau <- choose.tau(alpha,tau,D$size,D$pval,ifelse(method %in% c('MGB','WB'),yes='C',no='A'))
+    
+    if(verbose)
+    {
+        message(paste0('candidate values: ', paste0(tau,collapse=' ')))
+        message(paste0('estimated sizes : ', paste0(D$size,collapse=' ')))
+        message(paste0('p values        : ', paste0(D$pval,collapse=' ')))
+        message(paste0('selected  tau   : ', selected.tau, ', using method=',method,', based on B0=', B0,' replicates.'))
+    }
+    
+    return(selected.tau)
 }
 
-# select tau via resampling fron Gaussian with data covariance
-hdsci.tau.MGB <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
+inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,Ln.sorted=NULL,
+                        B=ceiling(50/alpha),B0=ceiling(50/alpha),method='MGB')
 {
-    B0 <- 10 * ceiling(1/alpha)
-    
-    pv <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
-    
-    if(is.matrix(X))
+    if(is.null(Mn.sorted) || is.null(Ln.sorted))
     {
-        X <- scale(X,scale=F)
-        n <- nrow(X)
-        test <- sapply(1:B0, function(j)
-        {
-            Y <- mgauss(X,n,NULL)
-            pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-        })
-    }
-    else
-    {
-        X <- lapply(X,function(z) scale(z,scale=F))
-        ns <- sapply(X,function(x){nrow(x)})
-        N <- sum(ns)
-        test <- sapply(1:B0, function(j)
-        {
-            Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
-            pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-        })
+        bs <- bootstrap(X,B,pairs,tau,Sig=NULL)
+        sigma2 <- bs$sigma2
+        Mn.sorted <- bs$Mn.sorted
+        Ln.sorted <- bs$Ln.sorted
     }
     
+    if(is.null(sigma2)){
+        if(is.matrix(X)) sigma2 <- apply(X,2,var)
+        else sigma2 <- lapply(X, function(x) apply(x,2,var))
+    } 
+    
+    if(is.null(tau)) tau <- seq(0,1,by=0.05)
+
+    pval <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
+    
+    if(method %in% c('MGB','MGBA'))
+    {
+        if(is.matrix(X))
+        {
+            X <- scale(X,scale=F)
+            n <- nrow(X)
+            test <- sapply(1:B0, function(j)
+            {
+                Y <- mgauss(X,n,NULL)
+                pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+            })
+        }
+        else
+        {
+            X <- lapply(X,function(z) scale(z,scale=F))
+            ns <- sapply(X,function(x){nrow(x)})
+            N <- sum(ns)
+            test <- sapply(1:B0, function(j)
+            {
+                Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
+                pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+            })
+        }
+    }
+    else if(method %in% c('WB','WBA'))
+    {
+        if(is.matrix(X))
+        {
+            X <- scale(X,scale=F)
+            n <- nrow(X)
+            test <- sapply(1:B0, function(j)
+            {
+                Y <- X[sample(1:n,n,replace=T),]
+                pvalue(Y,pairs,NULL,tau,NULL,NULL,B=B)
+            })
+        }
+        else
+        {
+            X <- lapply(X,function(z) scale(z,scale=F))
+            ns <- sapply(X,function(x){nrow(x)})
+            N <- sum(ns)
+            test <- sapply(1:B0, function(j)
+            {
+                Y <- lapply(X, function(z) z[sample(1:nrow(z),nrow(z),replace=T),])
+                pvalue(Y,pairs,NULL,tau,NULL,NULL,B=B)
+            })
+        }
+    }
+        
     rej <- test <= alpha
     size <- apply(rej,1,mean)
-    
-    choose.tau(alpha,tau,size,pv,ifelse(method=='MGB',yes='C',no='A'))
-    
+        
+    list(size=size,pval=pval,tau=tau)
 }
+
+
 
 choose.tau <- function(alpha,tau,size,pv,mod='C',margin=0.01)
 {
@@ -581,40 +636,5 @@ choose.tau <- function(alpha,tau,size,pv,mod='C',margin=0.01)
     # then tau0 might not be in the prescribed list
     # In this case, we select a tau in the list that is closest to tau0
     tau[which.min(abs(tau-tau0))] 
-}
-
-
-# select tau via resampling from the original data
-hdsci.tau.WB <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
-{
-    pv <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
-    
-    if(is.matrix(X))
-    {
-        X <- scale(X,scale=F)
-        n <- nrow(X)
-        test <- sapply(1:100, function(j)
-        {
-            Y <- X[sample(1:n,n,replace=T),]
-            pvalue(Y,pairs,NULL,tau,NULL,NULL,B=100)
-        })
-    }
-    else
-    {
-        X <- lapply(X,function(z) scale(z,scale=F))
-        ns <- sapply(X,function(x){nrow(x)})
-        N <- sum(ns)
-        test <- sapply(1:100, function(j)
-        {
-            Y <- lapply(X, function(z) z[sample(1:nrow(z),nrow(z),replace=T),])
-            pvalue(Y,pairs,NULL,tau,NULL,NULL,B=100)
-        })
-    }
-    
-    rej <- test <= alpha
-    size <- apply(rej,1,mean)
-    
-    choose.tau(alpha,tau,size,pv,ifelse(method=='WB',yes='C',no='A'))
-    
 }
 

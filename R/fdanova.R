@@ -1,13 +1,21 @@
-#' Hypothesis test for densely and relgaruly observed functional data
-#' @description Test the mean or differences of means of functional data are zero or not
-#' @param X a matrix (one sample) or a list of matrices (two samples or more), with observations contained in rows; equal spacing is assumed when \code{transform} is TRUE
-#' @param alpha significance level
-#' @param tau the decay parameter, automatically selected if set to \code{NULL}
-#' @param B the number of bootstrap replicates
-#' @param pairs a matrix with two columns, used when there are more than two populations, each row specifying a pair of populations whose means are compared, and if set to \code{NULL}, comparisons for all pairs are performed
-#' @param transform TRUE/FALSE, whether to transform the data into frequency domain via Fourier basis
-#' @param K a positive integer, the number of bais functions for transforming the data when \code{transform} is TRUE
-#' @return a list of objects: \code{reject} is a boolean variable indicating whether the null is rejected or not. If the null if reject, \code{rej.pairs} optionally gives the pairs of samples that lead to rejection. \code{pvalue} is also returned.
+#' Hypothesis Test for Densely and Regularly Observed Functional Data
+#' @description Test the mean or differences in means of functional data are zero or not.
+#' @param X a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing observations from a function.
+#' @param alpha significance level; default value: 0.05.
+#' @param tau a real number in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}
+#' @param B the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.
+#' @param pairs a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.
+#' @param transform TRUE/FALSE, whether to transform the data into frequency domain via a basis; default: TRUE.
+#' @param basis basis for transformation, for which possible options are \code{'fourier'} and \code{'eigen'}; default value: \code{'eigen'}.
+#' @param K a positive integer specifying the number of basis functions for transforming the data when \code{transform} is TRUE.
+#' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).
+#' @return a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
+#'      \describe{
+#'          \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
+#'          \item{\code{accept}}{a T/F value indicating whether the hypothesis is rejected.}
+#'          \item{\code{rej.paris}}{optionally gives the pairs of samples that lead to rejection.}
+#'          \item{\code{pvalue}}{the p-value of the test.}
+#'          }
 #' @importFrom Rdpack reprompt
 #' @references 
 #' \insertRef{Lopes2020}{hdanova}
@@ -15,7 +23,7 @@
 #' \insertRef{Lin2020}{hdanova}
 #' @examples
 #' # simulate a dataset of 4 samples
-#' X <- lapply(1:4, function(g) synfd::dense.fd(mu=0.05*g, X=synfd::gaussian.process(), n=30, m=50))
+#' X <- lapply(1:4, function(g) synfd::reg.fd(mu=0.05*g, X=synfd::gaussian.process(), n=30, m=50)$y)
 #' 
 #' # test for the equality of mean vectors with pairs={(1,3),(2,4)}
 #' res <- fdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6))
@@ -24,23 +32,25 @@
 #' res$pvalue 
 #' 
 #' # get selected tau
-#' res$tau
+#' res$selected.tau
 #' @export
 #' 
-fdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,transform=T,K=50,verbose=F)
+fdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,transform=T,K=50,verbose=F,tau.method='MGB',basis='fourier')
 {
     if(transform)
     {
         
-        if(is.matrix(X)) X <- X %*% fourier.basis(K,ncol(X)) / ncol(X)
+        if(is.matrix(X)) X <- X %*% get.basis(X,K,ncol(X),basis) / ncol(X)
         else
         {
             M <- ncol(X[[1]])
             h <- 1/(2*M)
             pts <- seq(h,1-h,length.out=M)
-            basis <- fourier.basis(K,pts)
+            
+            phi <- get.basis(X,K,M,basis)
+            
             X <- lapply(X,function(z){
-                z %*% basis / ncol(z)
+                z %*% phi / ncol(z)
             })
         }
     }
@@ -48,7 +58,11 @@ fdtest <- function(X,alpha=0.05,tau=NULL,B=1000,pairs=NULL,transform=T,K=50,verb
     return(hdtest(X,alpha=alpha,tau=tau,B=B,pairs=pairs,verbose=verbose))
 }
 
-
+get.basis <- function(X,K,M,basis)
+{
+    if(tolower(basis)=='fourier') fourier.basis(K,seq(0, 1, length.out = M))
+    else stop(paste0(basis,': not supported'))
+}
 
 
 #' Create a Fourier basis of K functions in [0, 1]

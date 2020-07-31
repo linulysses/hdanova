@@ -37,7 +37,7 @@ test_that("check routines in anova.R", {
     mu <- lapply(1:G,function(g) rep(0,p))
     Sig <- lapply(1:G,function(g) diag((1:p)^(-0.5*g)))
     X <- lapply(1:G,function(g) MASS::mvrnorm(n[g],mu[[g]],Sig[[g]]))
-    res <- hdtest(X,alpha,tau.method='WB')
+    res <- hdtest(X,alpha,tau.method='WB',B=200)
     expect_true(!res$reject)
     expect_true(res$pvalue >= alpha)
     
