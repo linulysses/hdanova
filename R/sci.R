@@ -413,11 +413,13 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
     # for one-sample
     if(is.matrix(X))
     {
-        zl <- Inf
-        zu <- -Inf
+        
         n <- nrow(X)
         
         pval <- sapply(1:length(tau), function(v){
+            
+            zl <- Inf
+            zu <- -Inf
             
             sig <- sqrt(sigma2)^tau[v] 
             X.bar <- apply(X,2,mean)
@@ -440,8 +442,7 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
     }
     else # for multiple-sample
     {
-        zl <- Inf
-        zu <- -Inf
+
         ns <- sapply(X,function(x){nrow(x)})
         
         if(!is.list(Mn.sorted))
@@ -451,6 +452,9 @@ pvalue <- function(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=1000)
         }
         
         pval <- sapply(1:length(tau), function(v){
+            
+            zl <- Inf
+            zu <- -Inf
             
             for(q in 1:nrow(pairs))
             {

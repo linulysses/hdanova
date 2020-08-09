@@ -28,7 +28,7 @@ size.tau(
 
 \item{verbose}{TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.}
 
-\item{R}{the number of iterations.}
+\item{R}{the number of iterations; default value: \code{ceiling(25/alpha)}.}
 
 \item{method}{the evaluation method tau; possible values are 'MGB' (default), 'MGBA', 'RGB', 'RGBA', 'WB' and 'WBA' (see \code{\link{hdsci}} for details).}
 }
