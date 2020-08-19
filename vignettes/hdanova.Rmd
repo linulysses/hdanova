@@ -1,0 +1,32 @@
+---
+title: "hdanova: An R package for High-dimensional and Functional ANOVA"
+author: "Fangkai Wu, Yinan Lin and Zhenhua Lin"
+date: "8/18/2020"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+To do: 1) literature search, i.e., find out recent R packages on HD and functional ANOVA; 2) The new things in this package (CUDA, unified approach, etc)
+
+## Simultaneous Confidence Intervals and Hypothesis Tests
+
+To do: describe methods for SCI (one-sample and multiple-sample): bootstrapping, GPF, etc
+
+## Using the Package for High-dimensional ANOVA
+
+To do: describe how to use the package
+
+## Using the Package for Functional ANOVA
+
+To do: define functional anova and hypothesis test on functional linear models; describe how to use the package
+
+## Performance and Design
+
+To do: some benchmarking with/without CUDA; discuss some design issues, etc.
+
+## Conclusions

@@ -2,7 +2,7 @@ Package: hdanova
 Type: Package
 Title: High-dimensional ANOVA and Simultaneous Confidence Intervals
 Version: 0.1.0
-Author: Zhenhua Lin
+Author: Zhenhua Lin, Fangkai Wu, Yinan Lin
 Maintainer: Zhenhua Lin <linz@nus.edu.sg>
 Description: Provide tools to construct simultaneous confidence intervals or perform hypothesis tests for the mean vector of the difference in the mean vectors in the high-dimensional setting. It also provides a procedure to perform hypothesis tests on the mean function or differences in mean functions of functional data.
 License: GPL-3
