@@ -9,6 +9,7 @@
 #' @param basis basis for transformation, for which possible options are \code{'fourier'} and \code{'eigen'}; default value: \code{'eigen'}.
 #' @param K a positive integer specifying the number of basis functions for transforming the data when \code{transform} is TRUE.
 #' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).
+#' @param ncore the number of CPU cores to be used; default value: 1.
 #' @return a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
 #'      \describe{
 #'          \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
@@ -35,7 +36,7 @@
 #' res$selected.tau
 #' @export
 #' 
-fdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,transform=T,K=50,verbose=F,tau.method='MGB',basis='fourier')
+fdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,transform=T,K=50,verbose=F,tau.method='MGB',basis='fourier',ncore=1)
 {
     if(transform)
     {
@@ -55,7 +56,7 @@ fdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,transfor
         }
     }
     
-    return(hdtest(X,alpha=alpha,tau=tau,B=B,pairs=pairs,verbose=verbose))
+    return(hdtest(X,alpha=alpha,tau=tau,B=B,pairs=pairs,verbose=verbose,ncore=ncore))
 }
 
 get.basis <- function(X,K,M,basis)
