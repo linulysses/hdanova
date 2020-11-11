@@ -8,6 +8,7 @@
 #' @param Sig a matrix (one-sample) or a list of matrices (multiple-samples), each of which is the covariance matrix of a sample; default value: \code{NULL}, so that it is automatically estimated from data.
 #' @param verbose TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.
 #' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).
+#' @param ncore the number of CPU cores to be used; default value: 1.
 #' @return a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
 #'      \describe{
 #'          \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
@@ -27,13 +28,13 @@
 #' # test for the equality of mean vectors with pairs={(1,3),(2,4)}
 #' hdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6))$reject
 #' @export
-hdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL,verbose=F,tau.method='MGB')
+hdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL,verbose=F,tau.method='MGB',ncore=1)
 {
     if(is.list(X)) G <- length(X)
     else if(is.matrix(X)) G <- 1
     else stop('X must be a matrix or a list of matrices')
     
-    res <- hdsci(X,alpha,'both',tau,B,pairs,Sig,verbose,tau.method)
+    res <- hdsci(X,alpha,'both',tau,B,pairs,Sig,verbose,tau.method,ncore)
     
     sci <- res$sci
     
@@ -81,7 +82,8 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL
 #' @param pairs a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.
 #' @param verbose TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.
 #' @param R the number of iterations; default value: \code{ceiling(25/alpha)}.
-#' @param method the evaluation method tau; possible values are 'MGB' (default), 'MGBA', 'RGB', 'RGBA', 'WB' and 'WBA' (see \code{\link{hdsci}} for details).
+#' @param method the evaluation method tau; possible values are 'MGB' (default), 'MGBA', 'RMGB', 'RMGBA', 'WB' and 'WBA' (see \code{\link{hdsci}} for details).
+#' @param ncore the number of CPU cores to be used; default value: 1.
 #' @return a vector of empirical size corresponding to \code{tau}.
 #' @importFrom Rdpack reprompt
 #' @references 
@@ -95,7 +97,7 @@ hdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL
 #' # test for the equality of mean vectors with pairs={(1,3),(2,4)}
 #' size.tau(X,tau=seq(0,1,by=0.1),alpha=0.05,pairs=matrix(1:4,2,2),R=100)
 #' @export
-size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,R=ceiling(25/alpha),method='MGB')
+size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,R=ceiling(25/alpha),method='MGB',ncore=1)
 {
     if(is.matrix(X)) X <- scale(X,scale=F)
     else
@@ -122,8 +124,8 @@ size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,R
         Ln.sorted <- NULL
     }
     
-    test <- sapply(1:R,function(j){
-        
+    test <- function(X,alpha,pairs,sigma2,tau,Mn.sort,Ln.sorted,B,method)
+    {
         if(method %in% c('RMGB','RMGBA'))
         {
             if(is.matrix(X)) Y <- mgauss(X[sample.int(nrow(X),replace=T),],nrow(X),NULL)
@@ -140,10 +142,58 @@ size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,R
             else Y <- lapply(X,function(x) mgauss(x,nrow(x),NULL))
         }
         
-
+        
         pv <- pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
         pv < alpha
-    })
-    apply(test,1,mean)
+    }
+    
+    if(ncore==1)
+        test.result <- sapply(1:R,function(j){
+            test(X,alpha,pairs,sigma2,tau,Mn.sort,Ln.sorted,B,method)
+            # if(method %in% c('RMGB','RMGBA'))
+            # {
+            #     if(is.matrix(X)) Y <- mgauss(X[sample.int(nrow(X),replace=T),],nrow(X),NULL)
+            #     else Y <- lapply(X,function(x) mgauss(x[sample.int(nrow(x),replace=T),],nrow(x),NULL))
+            # }
+            # else if(method %in% c('WB','WBA'))
+            # {
+            #     if(is.matrix(X)) Y <- X[sample.int(nrow(X),replace=T),]
+            #     else Y <- lapply(X,function(x) x[sample.int(nrow(x),replace=T),])
+            # }
+            # else # MGB and MGBA
+            # {
+            #     if(is.matrix(X)) Y <- mgauss(X,nrow(X),NULL)
+            #     else Y <- lapply(X,function(x) mgauss(x,nrow(x),NULL))
+            # }
+            # 
+            # 
+            # pv <- pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+            # pv < alpha
+        })
+    else
+    {
+        require(doSNOW)
+        require(doParallel)
+        
+        ncore <- min(detectCores(),ncore)
+        
+        
+        cl <- makeCluster(ncore, type="SOCK")  
+        clusterExport(cl, c('mgauss','pvalue'))
+        
+        registerDoSNOW(cl)  
+        
+        #progress <- function(n) cat(sprintf("task %d is complete\n", n))
+        #opts <- list(progress=progress)
+        result <- foreach(i=1:R,
+                          .packages=c('R.utils')#, .options.snow=opts
+                          ) %dopar% {
+                              test(X,alpha,pairs,sigma2,tau,Mn.sort,Ln.sorted,B,method)
+                              
+                          }
+        stopCluster(cl)
+        test.result <- do.call(cbind,result)
+    }
+    apply(test.result,1,mean)
 }
     

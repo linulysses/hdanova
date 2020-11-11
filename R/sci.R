@@ -9,6 +9,7 @@
 #' @param Sig a matrix (one-sample) or a list of matrices (multiple-samples), each of which is the covariance matrix of a sample; default value: \code{NULL}, so that it is automatically estimated from data.
 #' @param verbose TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.
 #' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'RMGB', 'RMGBA', 'WB' and 'WBA' (see details).
+#' @param ncore the number of CPU cores to be used; default value: 1.
 #' @return a list of the following objects: 
 #'      \describe{
 #'          \item{\code{sci}}{the constructed SCI, which is a list of the following objects:
@@ -30,11 +31,11 @@
 #'          }
 #' @details Four methods to select the decay parameter \code{tau} are provided. Using the fact that a SCI is equivalent to a hypothesis test problem, all of them first identify a set of good candidates which give rise to test that respects the specified level \code{alpha}, and then select a candidate that minimizes the p-value. These methods differ in how to identify the good candidates.
 #'     \describe{
-#'         \item{\code{MGB}}{for this method, conditional on the data \code{X}, \code{B0=10*ceiling(1/alpha)} i.i.d. zero-mean multivariate Gaussian samples (called MGB samples here) are drawn, where the covariance of each sample is equal to the sample covariance matrix \code{Sig} of the data \code{X}. For each candidate value in \code{tau}, 1) the empirical distribution of the corresponding max/min statistic is obtained by reusing the same bootstrapped sample, 2) the corresponding p-value is obtained, and 3) the size is estimated by applying the test to all MGB samples. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
+#'         \item{\code{MGB}}{for this method, conditional on the data \code{X}, \code{R=10*ceiling(1/alpha)} i.i.d. zero-mean multivariate Gaussian samples (called MGB samples here) are drawn, where the covariance of each sample is equal to the sample covariance matrix \code{Sig} of the data \code{X}. For each candidate value in \code{tau}, 1) the empirical distribution of the corresponding max/min statistic is obtained by reusing the same bootstrapped sample, 2) the corresponding p-value is obtained, and 3) the size is estimated by applying the test to all MGB samples. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
 #'         \item{\code{MGBA}}{an slightly more aggressive version of \code{MGB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}    
 #'         \item{\code{RMGB}}{this method is similar to \code{MGB}, except that for each MGB sample, the covariance matrix is the sample covariance matrix of a resampled (with replacement) data \code{X}.}
 #'         \item{\code{RMGBA}}{an slightly more aggressive version of \code{RMGB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}
-#'         \item{\code{WB}}{for this method, conditional on \code{X}, \code{B0=10*ceiling(1/alpha)} i.i.d. samples (called WB samples here) are drawn by resampling \code{X} with replacement. For each candidate value in \code{tau}, 1) the corresponding p-value is obtained, and 2) the size is estimated by applying the test to all WB samples without reusing the bootstrapped sample. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
+#'         \item{\code{WB}}{for this method, conditional on \code{X}, \code{R=10*ceiling(1/alpha)} i.i.d. samples (called WB samples here) are drawn by resampling \code{X} with replacement. For each candidate value in \code{tau}, 1) the corresponding p-value is obtained, and 2) the size is estimated by applying the test to all WB samples without reusing the bootstrapped sample. The candidate values with the empirical size closest to \code{alpha} are considered as good candidates.}
 #'         \item{\code{WBA}}{an slightly more aggressive version of \code{WB}, where the candidate values with the estimated empirical size no larger than \code{alpha} are considered good candidates.}
 #'     }
 #'     Among these methods, MGB and MGBA are recommended, since they are computationally more efficiently and often yield good performance. The MGBA might have slightly larger empirical size. The WB and WBA methods may be subject to outliers, in which case they become more conservative. The RMGB is computationally slightly slower than WB, but is less subject to outliers.
@@ -50,13 +51,13 @@
 #' # construct SCIs for the mean vectors with pairs={(1,3),(2,4)}
 #' hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))$sci
 #' @export
-hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL,verbose=F,tau.method='MGB')
+hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL,verbose=F,tau.method='MGB',ncore=1)
 {
     if(is.null(tau)) tau=1/(1+exp(-0.8*seq(-6,5,by=1)))
     
     if(is.matrix(X)) # one-sample
     {
-        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose,tau.method)
+        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
         return(sci)
     }
     else if(is.list(X))
@@ -64,7 +65,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NU
         K <- length(X)
         # now 2 or more samples
         if(is.null(pairs)) pairs <- t(combn(1:K,2))
-        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
+        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
         return(sci)
     }
     else stop('X must be matrix or a list')
@@ -73,7 +74,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NU
 
 # for one sample
 # if tau.method==NULL, then no selection of tau is made
-hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
+hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
 {
     n <- nrow(X)
     p <- ncol(X)
@@ -84,7 +85,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
     
     
     # bootstrap max statistic
-    bres <- bootstrap(X,B,pairs,tau,Sig)
+    bres <- bootstrap.mc(X,B,pairs,tau,Sig,ncore)
     Mn.sorted <- bres$Mn.sorted
     Ln.sorted <- bres$Ln.sorted
     sigma2 <- bres$sigma2
@@ -138,7 +139,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
     if(!is.null(tau.method))
     {
         if(length(tau) > 1){
-            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
+            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,ncore)
             v <- which(tau==selected.tau)
             res$sci <- sci.tau[[v]]
             res$selected.tau <- selected.tau
@@ -155,7 +156,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method)
 
 # for more than one sample
 # if tau.method==NULL, then no selection of tau is made
-hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
+hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
 {
     
     ns <- sapply(X,function(x){nrow(x)}) # size of each sample
@@ -167,7 +168,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
     
     
     # bootstrap max statistic
-    bres <- bootstrap(X,B,pairs,tau,Sig)
+    bres <- bootstrap.mc(X,B,pairs,tau,Sig,ncore)
     Mn.sorted <- bres$Mn.sorted
     Ln.sorted <- bres$Ln.sorted
     sigma2 <- bres$sigma2
@@ -256,7 +257,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
     {
         
         if(length(tau) > 1){
-            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose)
+            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,ncore)
             v <- which(tau==selected.tau)
             res$sci <- sci.tau[[v]]
             res$selected.tau <- selected.tau
@@ -269,6 +270,179 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method)
     }
     
     return(res)
+}
+
+bs.mc.helper <- function(X,G,ns,p,Sig,sigma2,B,tau,pairs)
+{
+    # no sorting here
+    Mn.tau <- matrix(0,B,length(tau))
+    Ln.tau <- matrix(0,B,length(tau))
+    
+    if(is.matrix(X))
+    {
+        n <- ns
+        rtn <- sqrt(n)
+        
+        # sample Gaussian vectors
+        
+        if(p <= 100)
+        {
+            W <- MASS::mvrnorm(B,rep(0,p),Sig)
+        }
+        else
+        {
+            xi <- matrix(rnorm(n*B),B,n)
+            W <- (xi %*% X - apply(xi,1,sum) %*% t(apply(X,2,mean))) / sqrt(n)
+        }
+        
+        
+        for(v in 1:length(tau))
+        {
+            sigma <- sqrt(sigma2)^tau[v]
+            idx <- (sigma <= 0)
+            S <- W / matrix(sigma,B,p,byrow=T)
+            S[,idx] <- 0
+            Mn <- apply(S,1,max)
+            Ln <- apply(S,1,min)
+            
+            Mn.tau[,v] <- Mn
+            Ln.tau[,v] <- Ln
+        }
+    }
+    else
+    {
+
+        n <- sum(ns) # total sample size
+        
+        # bootstrap max statistic
+        
+        if(p <= 100)
+        {
+            # sample a Gaussian vector for each sample
+            W <- list()
+            for(g in 1:G)
+            {
+                W[[g]] <- MASS::mvrnorm(B,rep(0,p),Sig[[g]])
+            }
+        }
+        else
+        {
+
+            xi <- lapply(ns,function(m) matrix(rnorm(m*B),B,m))
+            
+            W <- lapply(1:G,function(k){
+                (xi[[k]] %*% X[[k]] - apply(xi[[k]],1,sum) %*% t(apply(X[[k]],2,mean))) / sqrt(ns[k])
+            })
+        }
+        
+        
+        for(v in 1:length(tau))
+        {
+            Mn <- matrix(0,B,nrow(pairs))
+            Ln <- matrix(0,B,nrow(pairs))
+            
+            for(q in 1:nrow(pairs))
+            {
+                j <- pairs[q,1]
+                k <- pairs[q,2]
+                
+                lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
+                lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
+                
+                sig2j <- sigma2[[j]] 
+                sig2k <- sigma2[[k]]
+                
+                sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau[v]
+                S <- (lamj * W[[j]] - lamk * W[[k]]) / matrix(sigjk,B,p,byrow=T)
+                idx <- (sigjk==0)
+                S[,idx] <- 0
+                Mn[,q] <- apply(S,1,max)
+                Ln[,q] <- apply(S,1,min)
+            }
+            
+            Mn.tau[,v] <- apply(Mn,1,max)
+            Ln.tau[,v] <- apply(Ln,1,min)
+        }
+    }
+    
+    list(Mn=Mn.tau,Ln=Ln.tau)
+}
+
+# bootstrap
+bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
+{
+    if(B <= 1000) return(bootstrap(X,B,pairs,tau,Sig))
+    
+    require(doSNOW)
+    require(doParallel)
+    
+    ncore <- min(detectCores(),ncore)
+    
+    
+    BB <- rep(floor(B/ncore),ncore)
+    BB[ncore] <- BB[ncore] + B %% ncore
+    
+    if(is.matrix(X)) # one-sample
+    {
+        n <- nrow(X)
+        p <- ncol(X)
+        
+        rtn <- sqrt(n)
+        if(is.null(Sig) && p <= 100){
+            Sig <- var(scale(X,scale=F))
+            sigma2 <- diag(Sig)
+        } 
+        else sigma2 <- sigma2 <- apply(X,2,var)
+        
+    }
+    else # K-sample
+    {
+        # size of each sample
+        ns <- sapply(X,function(x){nrow(x)})
+        
+        # dimension
+        p <- ncol(X[[1]])
+        
+        G <- length(X) # number of samples
+        
+        # estimated covariance matrices of each sample if not provided
+        if(is.null(Sig) && p <= 100)
+        {
+            Sig <- lapply(X,function(x){var(scale(x,center=TRUE,scale=FALSE))})
+            sigma2 <- lapply(Sig,diag)
+        }
+        else sigma2 <- lapply(X,function(Z) apply(Z,2,var))
+    }
+    
+
+    cl <- makeCluster(ncore, type="SOCK")  
+    clusterExport(cl, c('bs.mc.helper'))
+    
+    registerDoSNOW(cl)  
+    
+    result <- foreach(i=1:ncore,
+                      .packages=c('R.utils')#, .options.snow=opts
+    ) %dopar% {
+        
+        bs.mc.helper(X,G,ns,p,Sig,sigma2,BB[i],tau,pairs)
+    }
+    
+    stopCluster(cl)
+    
+    # merge
+    Mn.sorted <- list()
+    Ln.sorted <- list()
+    
+    Mn <- do.call(rbind,lapply(result,'[[','Mn'))
+    Ln <- do.call(rbind,lapply(result,'[[','Ln'))
+    
+    for(v in 1:length(tau))
+    {
+        Mn.sorted[[v]] <- sort(Mn[,v])
+        Ln.sorted[[v]] <- sort(Ln[,v])
+    }
+
+    return(list(Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,sigma2=sigma2,Sig=Sig))
 }
 
 # bootstrap
@@ -515,31 +689,30 @@ mgauss <- function(X,n,Sig=NULL)
     W
 }
 
-hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method,verbose)
+hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method,verbose,ncore)
 {
 
-    B0 <- 25 * ceiling(1/alpha)
-    if(method %in% c('WB','WBA')) B0 <- 100
+    R <- 10 * ceiling(1/alpha)
     
     D <- inspect.tau(X,tau,alpha=alpha,pairs=pairs,sigma2=sigma2,
                      Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,
-                     B=B,B0=B0,method=method)
+                     R=R,method=method,ncore=ncore)
 
-    selected.tau <- choose.tau(alpha,tau,D$size,D$pval,ifelse(method %in% c('MGB','WB'),yes='C',no='A'))
+    selected.tau <- choose.tau(alpha,tau,D$size,D$pval,ifelse(method %in% c('MGB','WB','RMGB'),yes='C',no='A'))
     
     if(verbose)
     {
         message(paste0('candidate values: ', paste0(tau,collapse=' ')))
         message(paste0('estimated sizes : ', paste0(D$size,collapse=' ')))
         message(paste0('p values        : ', paste0(D$pval,collapse=' ')))
-        message(paste0('selected  tau   : ', selected.tau, ', using method=',method,', based on B0=', B0,' replicates.'))
+        message(paste0('selected  tau   : ', selected.tau, ', using method=',method,', based on R=', R,' replicates.'))
     }
     
     return(selected.tau)
 }
 
 inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,Ln.sorted=NULL,
-                        B=ceiling(50/alpha),B0=ceiling(50/alpha),method='MGB')
+                        B=ceiling(50/alpha),R=ceiling(10/alpha),method='MGB',ncore=1)
 {
     if(is.null(Mn.sorted) || is.null(Ln.sorted))
     {
@@ -560,39 +733,85 @@ inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,L
     
     if(method %in% c('RMGB','RMGBA','WB','WBA'))
     {
-        size <- size.tau(X,tau,alpha,B,pairs,verbose,R=B0,method='RMGB')
+        size <- size.tau(X,tau,alpha,B,pairs,verbose,R=R,method=method,ncore=ncore)
     }
     else # in order to resuse Mn.sorted, etc, we do not use size.tau function
     {
-            if(is.matrix(X))
+        if(is.matrix(X))
+        {
+            X <- scale(X,scale=F)
+            ns <- nrow(X)
+        } 
+        else
+        {
+            X <- lapply(X,function(z) scale(z,scale=F))
+            ns <- sapply(X,function(x){nrow(x)})
+        } 
+        
+        if(ncore==1)
+        {
+            test.result <- sapply(1:R, function(j)
             {
-                X <- scale(X,scale=F)
-                n <- nrow(X)
-                test <- sapply(1:B0, function(j)
-                {
-                    Y <- mgauss(X,n,NULL)
-                    pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-                })
-            }
-            else
-            {
-                X <- lapply(X,function(z) scale(z,scale=F))
-                ns <- sapply(X,function(x){nrow(x)})
-    
-                test <- sapply(1:B0, function(j)
-                {
-                    Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
-                    pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-                })
-            }
+                if(is.matrix(X)) Y <- mgauss(X,ns,NULL)
+                else Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
+                
+                pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+            })
+        }
+        else
+        {
+            require(doSNOW)
+            require(doParallel)
+            
+            ncore <- min(detectCores(),ncore)
+            
+            cl <- makeCluster(ncore, type="SOCK")  
+            clusterExport(cl, c('mgauss','pvalue'))
+            
+            registerDoSNOW(cl)  
+            
+            result <- foreach(i=1:R,
+                              .packages=c('R.utils')#, .options.snow=opts
+                        ) %dopar% {
+                
+                        if(is.matrix(X)) Y <- mgauss(X,ns,NULL)
+                        else Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
+                        
+                        pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+                        
+                        }
+            
+            stopCluster(cl)
+            test.result <- do.call(cbind,result)
+        }
+        
+            # if(is.matrix(X))
+            # {
+            #     X <- scale(X,scale=F)
+            #     n <- nrow(X)
+            #     test <- sapply(1:R, function(j)
+            #     {
+            #         Y <- mgauss(X,n,NULL)
+            #         pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+            #     })
+            # }
+            # else
+            # {
+            #     X <- lapply(X,function(z) scale(z,scale=F))
+            #     ns <- sapply(X,function(x){nrow(x)})
+            # 
+            #     test <- sapply(1:R, function(j)
+            #     {
+            #         Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
+            #         pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
+            #     })
+            # }
         
         
-            rej <- test <= alpha
+            rej <- test.result <= alpha
             size <- apply(rej,1,mean)
     }
-        
-    
-        
+
     list(size=size,pval=pval,tau=tau)
 }
 
