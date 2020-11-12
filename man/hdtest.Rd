@@ -12,7 +12,8 @@ hdtest(
   pairs = NULL,
   Sig = NULL,
   verbose = F,
-  tau.method = "MGB"
+  tau.method = "MGB",
+  ncore = 1
 )
 }
 \arguments{
@@ -31,6 +32,8 @@ hdtest(
 \item{verbose}{TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.}
 
 \item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
+
+\item{ncore}{the number of CPU cores to be used; default value: 1.}
 }
 \value{
 a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:

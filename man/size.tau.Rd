@@ -12,7 +12,8 @@ size.tau(
   pairs = NULL,
   verbose = F,
   R = ceiling(25/alpha),
-  method = "MGB"
+  method = "MGB",
+  ncore = 1
 )
 }
 \arguments{
@@ -30,7 +31,9 @@ size.tau(
 
 \item{R}{the number of iterations; default value: \code{ceiling(25/alpha)}.}
 
-\item{method}{the evaluation method tau; possible values are 'MGB' (default), 'MGBA', 'RGB', 'RGBA', 'WB' and 'WBA' (see \code{\link{hdsci}} for details).}
+\item{method}{the evaluation method tau; possible values are 'MGB' (default), 'MGBA', 'RMGB', 'RMGBA', 'WB' and 'WBA' (see \code{\link{hdsci}} for details).}
+
+\item{ncore}{the number of CPU cores to be used; default value: 1.}
 }
 \value{
 a vector of empirical size corresponding to \code{tau}.

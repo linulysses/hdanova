@@ -14,7 +14,8 @@ fdtest(
   K = 50,
   verbose = F,
   tau.method = "MGB",
-  basis = "fourier"
+  basis = "fourier",
+  ncore = 1
 )
 }
 \arguments{
@@ -35,6 +36,8 @@ fdtest(
 \item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
 
 \item{basis}{basis for transformation, for which possible options are \code{'fourier'} and \code{'eigen'}; default value: \code{'eigen'}.}
+
+\item{ncore}{the number of CPU cores to be used; default value: 1.}
 }
 \value{
 a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:

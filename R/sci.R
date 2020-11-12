@@ -416,7 +416,7 @@ bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
     
 
     cl <- makeCluster(ncore, type="SOCK")  
-    clusterExport(cl, c('bs.mc.helper'))
+    clusterExport(cl, c('bs.mc.helper'),envir = environment())
     
     registerDoSNOW(cl)  
     
@@ -766,7 +766,7 @@ inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,L
             ncore <- min(detectCores(),ncore)
             
             cl <- makeCluster(ncore, type="SOCK")  
-            clusterExport(cl, c('mgauss','pvalue'))
+            clusterExport(cl, c('mgauss','pvalue'),envir = environment())
             
             registerDoSNOW(cl)  
             
