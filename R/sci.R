@@ -64,7 +64,8 @@ hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
 
     if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
     {
-        return( hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R) )
+        # return( hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R) )
+        return( eval(parse(text = 'hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R)')) )
     }
     
     if(is.matrix(X)) # one-sample
@@ -435,8 +436,7 @@ bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
     doParallel::registerDoParallel(cl)  
     
     i <- NULL # a dirty trick to avoid a note: no visible binding for global variable 'i' Undefined global functions or variables: i
-    result <- foreach(i=1:ncore,
-                      .packages=c('R.utils')) %dopar% {
+    result <- foreach(i=1:ncore) %dopar% {
         
         bs.mc.helper(X,G,ns,p,Sig,sigma2,BB[i],tau,pairs)
     }
@@ -780,9 +780,7 @@ inspect.tau <- function(X,tau,alpha,pairs,sigma2,Mn.sorted,Ln.sorted,B,R,method,
             
             doParallel::registerDoParallel(cl)  
             
-            result <- foreach(i=1:R,
-                              .packages=c('R.utils')#, .options.snow=opts
-                        ) %dopar% {
+            result <- foreach(i=1:R) %dopar% {
                 
                         if(is.matrix(X)) Y <- mgauss(X,ns,NULL)
                         else Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))

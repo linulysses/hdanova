@@ -45,7 +45,8 @@ hdtest <- function(X,alpha=0.05,tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     
     if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
     {
-        return( hdanova.cuda::hdtest(X,alpha,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci) )
+        #return( hdanova.cuda::hdtest(X,alpha,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci) )
+        return( eval(parse(text = 'hdanova.cuda::hdtest(X,alpha,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci)')) )
     }
     
     res <- hdsci(X,alpha,'both',tau,B,pairs,Sig,verbose,
@@ -125,7 +126,8 @@ size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,
 {
     if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
     {
-        return( hdanova.cuda::size.tau(X,tau,alpha,B,pairs,verbose,method,R,nblock,tpb,seed) )
+        # return( hdanova.cuda::size.tau(X,tau,alpha,B,pairs,verbose,method,R,nblock,tpb,seed) )
+        return( eval(parse(text = 'hdanova.cuda::size.tau(X,tau,alpha,B,pairs,verbose,method,R,nblock,tpb,seed)')) )
     }
     
     if(is.matrix(X)) X <- scale(X,scale=F)
@@ -191,11 +193,8 @@ size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,
         
         doParallel::registerDoParallel(cl)  
         
-        result <- foreach(i=1:R,
-                          .packages=c('R.utils')#, .options.snow=opts
-                          ) %dopar% {
+        result <- foreach(i=1:R) %dopar% {
                               test(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
-                              
                           }
         parallel::stopCluster(cl)
         test.result <- do.call(cbind,result)
