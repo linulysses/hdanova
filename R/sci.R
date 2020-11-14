@@ -10,6 +10,11 @@
 #' @param verbose TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.
 #' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'RMGB', 'RMGBA', 'WB' and 'WBA' (see details).
 #' @param ncore the number of CPU cores to be used; default value: 1.
+#' @param cuda T/F to indicate whether to use CUDA GPU implementation when the package \code{hdanova.cuda} is installed. This option takes effect only when \code{ncore=1}.
+#' @param R the number of Monte Carlo replicates for estimating the empirical size; default: \code{ceiling(25/alpha)}
+#' @param nblock the number of block in CUDA computation
+#' @param tpb number of threads per block; the maximum number of total number of parallel GPU threads is then \code{nblock*tpb}
+#' @param seed the seed for random number generator
 #' @return a list of the following objects: 
 #'      \describe{
 #'          \item{\code{sci}}{the constructed SCI, which is a list of the following objects:
@@ -18,8 +23,8 @@
 #'                  \item{\code{sci.upper}}{a vector (when <= two samples) or a list of vectors (when >= 3 samples) specifying the upper bound of the SCI.}
 #'                  \item{\code{pairs}}{a matrix of two columns, each row containing the a pair of indices of samples of which the SCI of the difference in mean is constructed.}
 #'                  \item{\code{tau}}{the decay parameter that is used to construct the SCI.}
-#'                  \item{\code{Mn.sorted}}{the sorted (in increasing order) bootstrapped max statistic.}
-#'                  \item{\code{Ln.sorted}}{the sorted (in increasing order) bootstrapped min statistic.}
+#'                  \item{\code{Mn}}{the sorted (in increasing order) bootstrapped max statistic.}
+#'                  \item{\code{Ln}}{the sorted (in increasing order) bootstrapped min statistic.}
 #'                  \item{\code{side}}{the input \code{side}.}
 #'                  \item{\code{sigma2}}{a vector of variances for each coordinate.}
 #'              }
@@ -51,13 +56,20 @@
 #' # construct SCIs for the mean vectors with pairs={(1,3),(2,4)}
 #' hdsci(X,alpha=0.05,pairs=matrix(1:4,2,2))$sci
 #' @export
-hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NULL,Sig=NULL,verbose=F,tau.method='MGB',ncore=1)
+hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
+                  B=ceiling(50/alpha),pairs=NULL,Sig=NULL,
+                  verbose=F,tau.method='MGB',R=10*ceiling(1/alpha),ncore=1,cuda=T,
+                  nblock=32,tpb=64,seed=sample.int(2^30,1))
 {
-    if(is.null(tau)) tau=1/(1+exp(-0.8*seq(-6,5,by=1)))
+
+    if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
+    {
+        return( hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R) )
+    }
     
     if(is.matrix(X)) # one-sample
     {
-        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
+        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose,tau.method,R,ncore)
         return(sci)
     }
     else if(is.list(X))
@@ -65,7 +77,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NU
         K <- length(X)
         # now 2 or more samples
         if(is.null(pairs)) pairs <- t(combn(1:K,2))
-        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
+        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,R,ncore)
         return(sci)
     }
     else stop('X must be matrix or a list')
@@ -74,7 +86,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=NULL,B=ceiling(50/alpha),pairs=NU
 
 # for one sample
 # if tau.method==NULL, then no selection of tau is made
-hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
+hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,R,ncore)
 {
     n <- nrow(X)
     p <- ncol(X)
@@ -85,7 +97,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
     
     
     # bootstrap max statistic
-    bres <- bootstrap.mc(X,B,pairs,tau,Sig,ncore)
+    bres <- bootstrap.mc(X,B,NULL,tau,Sig,ncore)
     Mn.sorted <- bres$Mn.sorted
     Ln.sorted <- bres$Ln.sorted
     sigma2 <- bres$sigma2
@@ -124,8 +136,8 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
              sigma2=sigma2,
              tau=tau[v],
              side=side,
-             Mn.sorted=Mn.sorted[[v]],
-             Ln.sorted=Ln.sorted[[v]])
+             Mn=Mn.sorted[[v]],
+             Ln=Ln.sorted[[v]])
     })
     
     
@@ -139,7 +151,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
     if(!is.null(tau.method))
     {
         if(length(tau) > 1){
-            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,ncore)
+            selected.tau <- hdsci.tau(X,alpha,NULL,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,R,ncore)
             v <- which(tau==selected.tau)
             res$sci <- sci.tau[[v]]
             res$selected.tau <- selected.tau
@@ -156,7 +168,7 @@ hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,ncore)
 
 # for more than one sample
 # if tau.method==NULL, then no selection of tau is made
-hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
+hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,R,ncore)
 {
     
     ns <- sapply(X,function(x){nrow(x)}) # size of each sample
@@ -219,7 +231,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
                 tmp[idx] <- 0
                 sci.lower[[q]] <- tmp
             }
-            if(side == 'both' || size == 'upper')
+            if(side == 'both' || side == 'upper')
             {
                 tmp <- (X.bar-Y.bar) - Ln.sorted[[v]][b1] * sigjk / sqrt.harm.n
                 tmp[idx] <- 0
@@ -243,8 +255,8 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
              tau=tau[v],
              side=side,
              pairs=pairs,
-             Mn.sorted=Mn.sorted[[v]],
-             Ln.sorted=Ln.sorted[[v]])
+             Mn=Mn.sorted[[v]],
+             Ln=Ln.sorted[[v]])
     })
     
     # output
@@ -257,7 +269,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
     {
         
         if(length(tau) > 1){
-            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,ncore)
+            selected.tau <- hdsci.tau(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,R,ncore)
             v <- which(tau==selected.tau)
             res$sci <- sci.tau[[v]]
             res$selected.tau <- selected.tau
@@ -272,6 +284,7 @@ hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,ncore)
     return(res)
 }
 
+#' @import MASS
 bs.mc.helper <- function(X,G,ns,p,Sig,sigma2,B,tau,pairs)
 {
     # no sorting here
@@ -369,14 +382,15 @@ bs.mc.helper <- function(X,G,ns,p,Sig,sigma2,B,tau,pairs)
 }
 
 # bootstrap
+#' @importFrom stats var
+#' @importFrom doParallel registerDoParallel
+#' @importFrom parallel makeCluster stopCluster detectCores clusterExport
+#' @import foreach
 bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
 {
     if(B <= 1000) return(bootstrap(X,B,pairs,tau,Sig))
     
-    require(doSNOW)
-    require(doParallel)
-    
-    ncore <- min(detectCores(),ncore)
+    ncore <- min(parallel::detectCores(),ncore)
     
     
     BB <- rep(floor(B/ncore),ncore)
@@ -415,19 +429,19 @@ bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
     }
     
 
-    cl <- makeCluster(ncore, type="SOCK")  
-    clusterExport(cl, c('bs.mc.helper'),envir = environment())
+    cl <- parallel::makeCluster(ncore, type="SOCK")  
+    parallel::clusterExport(cl, c('bs.mc.helper'),envir = environment())
     
-    registerDoSNOW(cl)  
+    doParallel::registerDoParallel(cl)  
     
+    i <- NULL # a dirty trick to avoid a note: no visible binding for global variable 'i' Undefined global functions or variables: i
     result <- foreach(i=1:ncore,
-                      .packages=c('R.utils')#, .options.snow=opts
-    ) %dopar% {
+                      .packages=c('R.utils')) %dopar% {
         
         bs.mc.helper(X,G,ns,p,Sig,sigma2,BB[i],tau,pairs)
     }
     
-    stopCluster(cl)
+    parallel::stopCluster(cl)
     
     # merge
     Mn.sorted <- list()
@@ -446,6 +460,7 @@ bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
 }
 
 # bootstrap
+#' @importFrom stats rnorm var
 bootstrap <- function(X,B,pairs,tau,Sig)
 {
     
@@ -689,14 +704,11 @@ mgauss <- function(X,n,Sig=NULL)
     W
 }
 
-hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method,verbose,ncore)
+hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method,verbose,R,ncore)
 {
-
-    R <- 10 * ceiling(1/alpha)
-    
     D <- inspect.tau(X,tau,alpha=alpha,pairs=pairs,sigma2=sigma2,
                      Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,
-                     R=R,method=method,ncore=ncore)
+                     B=B,R=R,method=method,ncore=ncore)
 
     selected.tau <- choose.tau(alpha,tau,D$size,D$pval,ifelse(method %in% c('MGB','WB','RMGB'),yes='C',no='A'))
     
@@ -711,8 +723,10 @@ hdsci.tau <- function(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method,verb
     return(selected.tau)
 }
 
-inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,Ln.sorted=NULL,
-                        B=ceiling(50/alpha),R=ceiling(10/alpha),method='MGB',ncore=1)
+#' @importFrom doParallel registerDoParallel
+#' @importFrom parallel makeCluster stopCluster detectCores clusterExport
+#' @import foreach
+inspect.tau <- function(X,tau,alpha,pairs,sigma2,Mn.sorted,Ln.sorted,B,R,method,ncore)
 {
     if(is.null(Mn.sorted) || is.null(Ln.sorted))
     {
@@ -727,13 +741,12 @@ inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,L
         else sigma2 <- lapply(X, function(x) apply(x,2,var))
     } 
     
-    if(is.null(tau)) tau <- seq(0,1,by=0.05)
 
     pval <- pvalue(X,pairs,sigma2,tau,Mn.sorted,Ln.sorted)
     
     if(method %in% c('RMGB','RMGBA','WB','WBA'))
     {
-        size <- size.tau(X,tau,alpha,B,pairs,verbose,R=R,method=method,ncore=ncore)
+        size <- size.tau(X,tau,alpha,B,pairs,FALSE,R=R,method=method,ncore=ncore)
     }
     else # in order to resuse Mn.sorted, etc, we do not use size.tau function
     {
@@ -760,15 +773,12 @@ inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,L
         }
         else
         {
-            require(doSNOW)
-            require(doParallel)
+            ncore <- min(parallel::detectCores(),ncore)
             
-            ncore <- min(detectCores(),ncore)
+            cl <- parallel::makeCluster(ncore, type="SOCK")  
+            parallel::clusterExport(cl, c('mgauss','pvalue'),envir = environment())
             
-            cl <- makeCluster(ncore, type="SOCK")  
-            clusterExport(cl, c('mgauss','pvalue'),envir = environment())
-            
-            registerDoSNOW(cl)  
+            doParallel::registerDoParallel(cl)  
             
             result <- foreach(i=1:R,
                               .packages=c('R.utils')#, .options.snow=opts
@@ -781,35 +791,12 @@ inspect.tau <- function(X,tau,alpha=0.05,pairs=NULL,sigma2=NULL,Mn.sorted=NULL,L
                         
                         }
             
-            stopCluster(cl)
+            parallel::stopCluster(cl)
             test.result <- do.call(cbind,result)
         }
-        
-            # if(is.matrix(X))
-            # {
-            #     X <- scale(X,scale=F)
-            #     n <- nrow(X)
-            #     test <- sapply(1:R, function(j)
-            #     {
-            #         Y <- mgauss(X,n,NULL)
-            #         pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-            #     })
-            # }
-            # else
-            # {
-            #     X <- lapply(X,function(z) scale(z,scale=F))
-            #     ns <- sapply(X,function(x){nrow(x)})
-            # 
-            #     test <- sapply(1:R, function(j)
-            #     {
-            #         Y <- lapply(1:length(ns), function(g) mgauss(X[[g]],ns[g],NULL))
-            #         pvalue(Y,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B=B)
-            #     })
-            # }
-        
-        
-            rej <- test.result <= alpha
-            size <- apply(rej,1,mean)
+
+        rej <- test.result <= alpha
+        size <- apply(rej,1,mean)
     }
 
     list(size=size,pval=pval,tau=tau)

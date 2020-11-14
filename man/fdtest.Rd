@@ -7,15 +7,20 @@
 fdtest(
   X,
   alpha = 0.05,
-  tau = NULL,
+  tau = 1/(1 + exp(-0.8 * seq(-6, 5, by = 1))),
   B = ceiling(50/alpha),
   pairs = NULL,
   transform = T,
   K = 50,
   verbose = F,
-  tau.method = "MGB",
   basis = "fourier",
-  ncore = 1
+  tau.method = "MGB",
+  R = 10 * ceiling(1/alpha),
+  ncore = 1,
+  cuda = T,
+  nblock = 32,
+  tpb = 64,
+  seed = sample.int(2^30, 1)
 )
 }
 \arguments{
@@ -33,11 +38,23 @@ fdtest(
 
 \item{K}{a positive integer specifying the number of basis functions for transforming the data when \code{transform} is TRUE.}
 
-\item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
+\item{verbose}{T/F to indicate whether to output auxillary information}
 
 \item{basis}{basis for transformation, for which possible options are \code{'fourier'} and \code{'eigen'}; default value: \code{'eigen'}.}
 
+\item{tau.method}{the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).}
+
+\item{R}{the number of Monte Carlo replicates for estimating the empirical size; default: \code{ceiling(25/alpha)}}
+
 \item{ncore}{the number of CPU cores to be used; default value: 1.}
+
+\item{cuda}{T/F to indicate whether to use CUDA GPU implementation when the package \code{hdanova.cuda} is installed. This option takes effect only when \code{ncore=1}.}
+
+\item{nblock}{the number of block in CUDA computation}
+
+\item{tpb}{number of threads per block; the maximum number of total number of parallel GPU threads is then \code{nblock*tpb}}
+
+\item{seed}{the seed for random number generator}
 }
 \value{
 a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:

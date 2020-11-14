@@ -11,9 +11,13 @@ size.tau(
   B = ceiling(50/alpha),
   pairs = NULL,
   verbose = F,
-  R = ceiling(25/alpha),
   method = "MGB",
-  ncore = 1
+  R = ceiling(10/alpha),
+  ncore = 1,
+  cuda = T,
+  nblock = 32,
+  tpb = 64,
+  seed = sample.int(2^30, 1)
 )
 }
 \arguments{
@@ -29,11 +33,19 @@ size.tau(
 
 \item{verbose}{TRUE/FALSE, indicator of whether to output diagnostic information or report progress; default value: FALSE.}
 
-\item{R}{the number of iterations; default value: \code{ceiling(25/alpha)}.}
-
 \item{method}{the evaluation method tau; possible values are 'MGB' (default), 'MGBA', 'RMGB', 'RMGBA', 'WB' and 'WBA' (see \code{\link{hdsci}} for details).}
 
+\item{R}{the number of iterations; default value: \code{ceiling(25/alpha)}.}
+
 \item{ncore}{the number of CPU cores to be used; default value: 1.}
+
+\item{cuda}{T/F to indicate whether to use CUDA GPU implementation when the package \code{hdanova.cuda} is installed. This option takes effect only when \code{ncore=1}.}
+
+\item{nblock}{the number of block in CUDA computation}
+
+\item{tpb}{number of threads per block; the maximum number of total number of parallel GPU threads is then \code{nblock*tpb}}
+
+\item{seed}{the seed for random number generator}
 }
 \value{
 a vector of empirical size corresponding to \code{tau}.
@@ -45,7 +57,6 @@ Find the empirical size associated with the decay parameter conditional on a dat
 # simulate a dataset of 4 samples
 X <- lapply(1:4, function(g) MASS::mvrnorm(30,rep(0.3*g,10),diag((1:10)^(-0.5*g))))
 
-# test for the equality of mean vectors with pairs={(1,3),(2,4)}
 size.tau(X,tau=seq(0,1,by=0.1),alpha=0.05,pairs=matrix(1:4,2,2),R=100)
 }
 \references{

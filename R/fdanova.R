@@ -8,8 +8,14 @@
 #' @param transform TRUE/FALSE, whether to transform the data into frequency domain via a basis; default: TRUE.
 #' @param basis basis for transformation, for which possible options are \code{'fourier'} and \code{'eigen'}; default value: \code{'eigen'}.
 #' @param K a positive integer specifying the number of basis functions for transforming the data when \code{transform} is TRUE.
+#' @param verbose T/F to indicate whether to output auxillary information
 #' @param tau.method the method to select tau; possible values are 'MGB' (default), 'MGBA', 'WB' and 'WBA' (see \code{\link{hdsci}}).
 #' @param ncore the number of CPU cores to be used; default value: 1.
+#' @param cuda T/F to indicate whether to use CUDA GPU implementation when the package \code{hdanova.cuda} is installed. This option takes effect only when \code{ncore=1}.
+#' @param R the number of Monte Carlo replicates for estimating the empirical size; default: \code{ceiling(25/alpha)}
+#' @param nblock the number of block in CUDA computation
+#' @param tpb number of threads per block; the maximum number of total number of parallel GPU threads is then \code{nblock*tpb}
+#' @param seed the seed for random number generator
 #' @return a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
 #'      \describe{
 #'          \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
@@ -36,7 +42,9 @@
 #' res$selected.tau
 #' @export
 #' 
-fdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,transform=T,K=50,verbose=F,tau.method='MGB',basis='fourier',ncore=1)
+fdtest <- function(X,alpha=0.05,tau=1/(1+exp(-0.8*seq(-6,5,by=1))),B=ceiling(50/alpha),pairs=NULL,transform=T,K=50,
+                   verbose=F,basis='fourier',tau.method='MGB',R=10*ceiling(1/alpha),ncore=1,
+                   cuda=T,nblock=32,tpb=64,seed=sample.int(2^30,1))
 {
     if(transform)
     {
@@ -56,7 +64,7 @@ fdtest <- function(X,alpha=0.05,tau=NULL,B=ceiling(50/alpha),pairs=NULL,transfor
         }
     }
     
-    return(hdtest(X,alpha=alpha,tau=tau,B=B,pairs=pairs,verbose=verbose,ncore=ncore))
+    return(hdtest(X,alpha,tau,B,pairs,NULL,verbose,tau.method,R,ncore,cuda,nblock,tpb,seed))
 }
 
 get.basis <- function(X,K,M,basis)
@@ -72,9 +80,6 @@ get.basis <- function(X,K,M,basis)
 #' @param pts A vector specifying the time points to evaluate the basis functions.
 #' @return A K by len(pts) matrix, each column containing a basis function.
 #'
-#' @examples
-#' basis <- fourier.basis(3)
-#' head(basis)
 #' @keywords internal
 fourier.basis <- function(K,pts = seq(0, 1, length.out = 50)) 
 {
