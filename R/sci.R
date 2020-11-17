@@ -62,10 +62,11 @@ hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
                   nblock=32,tpb=64,seed=sample.int(2^30,1))
 {
 
-    if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
+    if(ncore<=1 && cuda)
     {
-        # return( hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R) )
-        return( eval(parse(text = 'hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R)')) )
+        if('hdanova.cuda' %in% installed.packages()[,"Package"])
+            return( eval(parse(text = 'hdanova.cuda::hdsci(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,nblock,tpb,seed,R)')) )
+        else warning('Package hdanova.cuda is not detected. Automatically switch to the non-CUDA version.')
     }
     
     if(is.matrix(X)) # one-sample
@@ -389,9 +390,17 @@ bs.mc.helper <- function(X,G,ns,p,Sig,sigma2,B,tau,pairs)
 #' @import foreach
 bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
 {
-    if(B <= 1000) return(bootstrap(X,B,pairs,tau,Sig))
+    #if(B <= 1000) return(bootstrap(X,B,pairs,tau,Sig))
     
-    ncore <- min(parallel::detectCores(),ncore)
+    ncore_ <- ncore
+    ncore <- min(parallel::detectCores(),ncore_)
+    
+    if(ncore <= 1)
+    {
+        if(ncore_ > 1) warning('only one core is detected.')
+        return(bootstrap(X,B,pairs,tau,Sig))
+    } 
+    
     
     
     BB <- rep(floor(B/ncore),ncore)
@@ -761,6 +770,11 @@ inspect.tau <- function(X,tau,alpha,pairs,sigma2,Mn.sorted,Ln.sorted,B,R,method,
             ns <- sapply(X,function(x){nrow(x)})
         } 
         
+        ncore_ <- ncore
+        ncore <- min(parallel::detectCores(),ncore)
+        
+        if(ncore_ > 1 && ncore <= 1) warning('only one core is detected.')
+        
         if(ncore==1)
         {
             test.result <- sapply(1:R, function(j)
@@ -773,8 +787,7 @@ inspect.tau <- function(X,tau,alpha,pairs,sigma2,Mn.sorted,Ln.sorted,B,R,method,
         }
         else
         {
-            ncore <- min(parallel::detectCores(),ncore)
-            
+
             cl <- parallel::makeCluster(ncore, type="SOCK")  
             parallel::clusterExport(cl, c('mgauss','pvalue'),envir = environment())
             

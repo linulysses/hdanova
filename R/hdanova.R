@@ -43,10 +43,12 @@ hdtest <- function(X,alpha=0.05,tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     else if(is.matrix(X)) G <- 1
     else stop('X must be a matrix or a list of matrices')
     
-    if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
+    if(ncore<=1 && cuda)
     {
-        #return( hdanova.cuda::hdtest(X,alpha,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci) )
-        return( eval(parse(text = 'hdanova.cuda::hdtest(X,alpha,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci)')) )
+        if('hdanova.cuda' %in% installed.packages()[,"Package"])
+            return( eval(parse(text = 'hdanova.cuda::hdtest(X,alpha,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci)')) )
+        else
+            warning('Package hdanova.cuda is not detected. Automatically switch to the non-CUDA version.')
     }
     
     res <- hdsci(X,alpha,'both',tau,B,pairs,Sig,verbose,
@@ -124,10 +126,13 @@ size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,
                      method='MGB',R=ceiling(10/alpha),ncore=1,cuda=T,
                      nblock=32,tpb=64,seed=sample.int(2^30,1))
 {
-    if(ncore<=1 && cuda && 'hdanova.cuda' %in% installed.packages()[,"Package"])
+
+    if(ncore<=1 && cuda)
     {
-        # return( hdanova.cuda::size.tau(X,tau,alpha,B,pairs,verbose,method,R,nblock,tpb,seed) )
-        return( eval(parse(text = 'hdanova.cuda::size.tau(X,tau,alpha,B,pairs,verbose,method,R,nblock,tpb,seed)')) )
+        if('hdanova.cuda' %in% installed.packages()[,"Package"])
+            return( eval(parse(text = 'hdanova.cuda::size.tau(X,tau,alpha,B,pairs,verbose,method,R,nblock,tpb,seed)')) )
+        else
+            warning('Package hdanova.cuda is not detected. Automatically switch to the non-CUDA version.')
     }
     
     if(is.matrix(X)) X <- scale(X,scale=F)
@@ -178,16 +183,19 @@ size.tau <- function(X,tau,alpha=0.05,B=ceiling(50/alpha),pairs=NULL,verbose=F,
         pv < alpha
     }
     
+    ncore_ <- ncore
+    ncore <- min(parallel::detectCores(),ncore_)
+    
+    if(ncore_ > 1 && ncore <= 1) warning('only one core is detected.')
+    
+    
     if(ncore==1)
         test.result <- sapply(1:R,function(j){
             test(X,alpha,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method)
         })
     else
     {
-     
-        ncore <- min(parallel::detectCores(),ncore)
-        
-        
+
         cl <- parallel::makeCluster(ncore, type="SOCK")  
         parallel::clusterExport(cl, c('mgauss','pvalue'))
         
