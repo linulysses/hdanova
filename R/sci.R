@@ -408,10 +408,10 @@ bootstrap.mc <- function(X,B,pairs,tau,Sig,ncore)
     
     if(is.matrix(X)) # one-sample
     {
-        n <- nrow(X)
+        ns <- nrow(X)
         p <- ncol(X)
         
-        rtn <- sqrt(n)
+        rtn <- sqrt(ns)
         if(is.null(Sig) && p <= 100){
             Sig <- var(scale(X,scale=F))
             sigma2 <- diag(Sig)
