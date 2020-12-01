@@ -7,6 +7,7 @@
 hdtest(
   X,
   alpha = 0.05,
+  side = "==",
   tau = 1/(1 + exp(-0.8 * seq(-6, 5, by = 1))),
   B = ceiling(50/alpha),
   pairs = NULL,
@@ -26,6 +27,8 @@ hdtest(
 \item{X}{a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing an observation.}
 
 \item{alpha}{significance level; default value: 0.05.}
+
+\item{side}{either of \code{'lower','upper'} or \code{'both'}; default value: \code{'both'}.}
 
 \item{tau}{real number(s) in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
 

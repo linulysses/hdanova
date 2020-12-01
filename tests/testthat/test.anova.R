@@ -27,6 +27,15 @@ test_that("check routines in anova.R", {
     res <- hdtest(X,alpha,tau.method='MGBA')
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
+    
+    
+    res <- hdtest(X,alpha, side='>=', tau.method='MGBA')
+    expect_true(res$accept)
+    expect_true(res$pvalue > alpha)
+    
+    res <- hdtest(X,alpha, side='<=', tau.method='MGBA')
+    expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
 
     
     # 3-sample, size of test
@@ -51,6 +60,14 @@ test_that("check routines in anova.R", {
     res <- hdtest(X,alpha,B=200,R=100)
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
+    
+    res <- hdtest(X,alpha,side='>=',B=200,R=100)
+    expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
+    
+    res <- hdtest(X,alpha,side='<=',B=200,R=100)
+    expect_true(res$accept)
+    expect_true(res$pvalue > alpha)
     
     
     # 3-sample, functional anova
@@ -79,6 +96,10 @@ test_that("check routines in anova.R", {
             Sig <- lapply(1:G,function(g) diag((1:p)^(-0.5*g)))
             X <- lapply(1:G,function(g) MASS::mvrnorm(n[g],mu[[g]],Sig[[g]]))
             res <- hdtest(X,alpha,B=200,R=100,ncore=2)
+            expect_true(res$reject)
+            expect_true(res$pvalue < alpha)
+            
+            res <- hdtest(X,alpha,side='>=',B=200,R=100)
             expect_true(res$reject)
             expect_true(res$pvalue < alpha)
         }
