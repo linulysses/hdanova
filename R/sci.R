@@ -827,7 +827,7 @@ choose.tau <- function(alpha,tau,size,pv,mod='C',margin=0.01)
 #' @description Find the empirical size associated with the decay parameter conditional on a dataset
 #' @param X a matrix (one-sample) or a list of matrices (multiple-samples), with each row representing an observation.
 #' @param alpha significance level; default value: 0.05.
-#' @param side either of \code{'lower','upper'} or \code{'both'}; default value: \code{'both'}.
+#' @param side either of \code{'<=','>='} or \code{'=='}; default value: \code{'=='}.
 #' @param tau real number(s) in the interval \code{[0,1)} for which the empirical size will be evaluated.
 #' @param B the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.
 #' @param pairs a matrix with two columns, only used when there are more than two populations, where each row specifies a pair of populations for which the SCI is constructed; default value: \code{NULL}, so that SCIs for all pairs are constructed.
@@ -855,11 +855,18 @@ choose.tau <- function(alpha,tau,size,pv,mod='C',margin=0.01)
 #' 
 #' size.tau(X,tau=seq(0,1,by=0.1),alpha=0.05,pairs=matrix(1:4,2,2),R=100)
 #' @export
-size.tau <- function(X,tau,alpha=0.05,side='both',
+size.tau <- function(X,tau,alpha=0.05,side='==',
                      B=ceiling(50/alpha),pairs=NULL,verbose=F,
                      method='MGB',R=ceiling(10/alpha),ncore=1,cuda=T,
                      nblock=32,tpb=64,seed=sample.int(2^30,1))
 {
+    side <- switch (side,
+                        '>=' = 'upper',
+                        '<=' = 'lower',
+                        '==' = 'both',
+                        '='  = 'both',
+                        'both' = 'both'
+    )
     
     if(ncore<=1 && cuda)
     {

@@ -73,7 +73,7 @@ hdtest <- function(X,alpha=0.05,side='==',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     if(ncore<=1 && cuda)
     {
         if('hdanova.cuda' %in% installed.packages()[,"Package"])
-            return( eval(parse(text = 'hdanova.cuda::hdtest(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,sci)')) )
+            return( eval(parse(text = 'hdanova.cuda::hdtest(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,R,nblock,tpb,seed,return.sci)')) )
         else
             message('Package hdanova.cuda is not detected. Automatically switch to the non-CUDA version.')
     }
