@@ -93,7 +93,7 @@ hdtest <- function(X,alpha=0.05,side='==',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     {
         res$sci <- res$sci.tau[[1]]
         res$selected.tau <- res$tau
-        res$pvalue <- pvalue(X,sci.side,res$sci$pairs,res$sci$sigma2,
+        res$pvalue <- pvalue(X,sci.side,res$sci$pairs,res$sigma2,
                              res$sci$tau,res$sci$Mn,res$sci$Ln,B=B)
     }
     

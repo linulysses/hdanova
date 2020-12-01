@@ -15,6 +15,10 @@ test_that("check routines in anova.R", {
     expect_true(!res$reject)
     expect_true(res$pvalue >= alpha)
     
+    res <- hdtest(X,alpha,tau.method='MGB',cuda=F)
+    expect_true(!res$reject)
+    expect_true(res$pvalue >= alpha)
+    
     
     
     # one-sample, power of test
@@ -28,12 +32,24 @@ test_that("check routines in anova.R", {
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
     
+    res <- hdtest(X,alpha,tau.method='MGBA',cuda=F)
+    expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
+    
     
     res <- hdtest(X,alpha, side='>=', tau.method='MGBA')
-    expect_true(res$accept)
+    expect_false(res$reject)
+    expect_true(res$pvalue > alpha)
+    
+    res <- hdtest(X,alpha, side='>=', tau.method='MGBA',cuda=F)
+    expect_false(res$reject)
     expect_true(res$pvalue > alpha)
     
     res <- hdtest(X,alpha, side='<=', tau.method='MGBA')
+    expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
+    
+    res <- hdtest(X,alpha, side='<=', tau.method='MGBA',cuda=F)
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
 
@@ -49,6 +65,10 @@ test_that("check routines in anova.R", {
     expect_true(!res$reject)
     expect_true(res$pvalue >= alpha)
     
+    res <- hdtest(X,alpha,tau.method='MGB',B=200,cuda=F)
+    expect_true(!res$reject)
+    expect_true(res$pvalue >= alpha)
+    
     
     # 3-sample, power of test
     set.seed(41343)
@@ -61,12 +81,24 @@ test_that("check routines in anova.R", {
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
     
+    res <- hdtest(X,alpha,B=200,R=100,cuda=F)
+    expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
+    
     res <- hdtest(X,alpha,side='>=',B=200,R=100)
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
     
+    res <- hdtest(X,alpha,side='>=',B=200,R=100,cuda=F)
+    expect_true(res$reject)
+    expect_true(res$pvalue < alpha)
+    
     res <- hdtest(X,alpha,side='<=',B=200,R=100)
-    expect_true(res$accept)
+    expect_false(res$reject)
+    expect_true(res$pvalue > alpha)
+    
+    res <- hdtest(X,alpha,side='<=',B=200,R=100,cuda=F)
+    expect_false(res$reject)
     expect_true(res$pvalue > alpha)
     
     
