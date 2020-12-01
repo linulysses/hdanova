@@ -20,7 +20,7 @@ hdtest(
   nblock = 32,
   tpb = 64,
   seed = sample.int(2^30, 1),
-  sci = F
+  return.sci = F
 )
 }
 \arguments{
@@ -28,7 +28,7 @@ hdtest(
 
 \item{alpha}{significance level; default value: 0.05.}
 
-\item{side}{either of \code{'lower','upper'} or \code{'both'}; default value: \code{'both'}.}
+\item{side}{either of \code{'<=','>='} or \code{'=='}; default value: \code{'=='}.}
 
 \item{tau}{real number(s) in the interval \code{[0,1)} that specifies the decay parameter and is automatically selected if it is set to \code{NULL} or multiple values are provided; default value: \code{NULL}, which is equivalent to \code{tau=1/(1+exp(-0.8*seq(-6,5,by=1))).}}
 
@@ -54,16 +54,10 @@ hdtest(
 
 \item{seed}{the seed for random number generator}
 
-\item{sci}{T/F, indicating whether to construct SCIs or not; default: FALSE.}
+\item{return.sci}{T/F, indicating whether to construct SCIs or not; default: FALSE.}
 }
 \value{
-a list that includes all objects returned by \code{\link{hdsci}} and the following additional objects:
-     \describe{
-         \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
-         \item{\code{accept}}{a T/F value indicating whether the hypothesis is rejected.}
-         \item{\code{rej.paris}}{optionally gives the pairs of samples that lead to rejection.}
-         \item{\code{pvalue}}{the p-value of the test.}
-         }
+
 }
 \description{
 Test the mean or differences of means of high-dimensional vectors are zero or not.

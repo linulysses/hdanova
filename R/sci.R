@@ -26,13 +26,16 @@
 #'                  \item{\code{Mn}}{the sorted (in increasing order) bootstrapped max statistic.}
 #'                  \item{\code{Ln}}{the sorted (in increasing order) bootstrapped min statistic.}
 #'                  \item{\code{side}}{the input \code{side}.}
-#'                  \item{\code{sigma2}}{a vector of variances for each coordinate.}
+#'                  \item{\code{alpha}}{the input \code{alpha}.}
 #'              }
 #'          }
 #'          \item{\code{tau}}{a vector of candidate values of the decay parameter.}
 #'          \item{\code{sci.tau}}{a list of \code{sci} objects corresponding to the candidate values in \code{tau}.}
 #'          \item{\code{selected.tau}}{the selected value of the decay parameter from \code{tau}.}
-#'          \item{\code{Sig}}{the sample covariance matrix (if it is computed).}
+#'          \item{\code{side}}{the input \code{side}.}
+#'          \item{\code{alpha}}{the input \code{alpha}.}
+#'          \item{\code{pairs}}{a matrix of two columns, each row containing the a pair of indices of samples of which the SCI of the difference in mean is constructed.}
+#'          \item{\code{sigma2}}{a vector (for one sample) or a list (for multiple samples) of vectors containing variance for each coordinate.}
 #'          }
 #' @details Four methods to select the decay parameter \code{tau} are provided. Using the fact that a SCI is equivalent to a hypothesis test problem, all of them first identify a set of good candidates which give rise to test that respects the specified level \code{alpha}, and then select a candidate that minimizes the p-value. These methods differ in how to identify the good candidates.
 #'     \describe{
@@ -61,7 +64,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
                   verbose=F,tau.method='MGB',R=10*ceiling(1/alpha),ncore=1,cuda=T,
                   nblock=32,tpb=64,seed=sample.int(2^30,1))
 {
-
+    
     if(ncore<=1 && cuda)
     {
         if('hdanova.cuda' %in% installed.packages()[,"Package"])
@@ -69,221 +72,183 @@ hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
         else message('Package hdanova.cuda is not detected. Automatically switch to the non-CUDA version.')
     }
     
+    
+    res <- hdanova(X,alpha,side,tau,B,pairs,Sig,verbose,ncore=1)
+    
+    if(length(tau) > 1){
+            D <- hdsci.tau(X,alpha,side,res$pairs,res$sigma2,tau,res$Mn,res$Ln,B,tau.method,verbose,R,ncore)
+            v <- which(tau==D$selected.tau)
+            res$sci <- res$sci.tau[[v]]
+            res$selected.tau <- D$selected.tau
+    } 
+    else
+    {
+        res$sci <- res$sci.tau[[1]]
+        res$selected.tau <- res$tau
+    }
+    
+    res <- within(res,rm(Mn,Ln))
+ 
+    return(res)
+    
+}
+
+hdanova <- function(X,alpha,side,tau,B,pairs,Sig,verbose,ncore=1)
+{
     if(is.matrix(X)) # one-sample
     {
-        sci <- hdsci1(X,alpha,side,tau,B,Sig,verbose,tau.method,R,ncore)
-        return(sci)
+        pairs <- NULL
+        K <- 1
+        ns <- nrow(X)
+        p <- ncol(X)
+        n <- ns
     }
-    else if(is.list(X))
+    else if(is.list(X)) # K-sample with K>1
     {
         K <- length(X)
-        # now 2 or more samples
         if(is.null(pairs)) pairs <- t(combn(1:K,2))
-        sci <- hdsciK(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,R,ncore)
-        return(sci)
+        p <- ncol(X[[1]])
+        ns <- sapply(X,function(x){nrow(x)}) # size of each sample
+        n <- sum(ns)
     }
     else stop('X must be matrix or a list')
     
-}
-
-# for one sample
-# if tau.method==NULL, then no selection of tau is made
-hdsci1 <- function(X,alpha,side,tau,B,Sig,verbose,tau.method,R,ncore)
-{
-    n <- nrow(X)
-    p <- ncol(X)
-    
-    rtn <- sqrt(n)
-    
-#    if(is.null(tau)) tau <- seq(0,1,by=0.1)
-    
-    
-    # bootstrap max statistic
-    bres <- bootstrap.mc(X,B,NULL,tau,Sig,ncore)
-    Mn.sorted <- bres$Mn.sorted
-    Ln.sorted <- bres$Ln.sorted
-    sigma2 <- bres$sigma2
-    
-    X.bar <- apply(X,2,mean)
-    
-    sci.tau <- lapply(1:length(tau),function(v){
-        
-        # construct SCI
-        side <- tolower(side)
-        if(side == 'both')
-        {
-            a1 <- alpha/2
-            a2 <- 1 - alpha/2
-        }
-        else
-        {
-            a1 <- alpha
-            a2 <- alpha
-        }
-        
-        b1 <- max(1,round(a1*B))
-        b2 <- round(a2*B)
-        
-        sigma <- sqrt(sigma2)^tau[v]
-        
-        idx <- sigma == 0
-        
-        sci.lower <- X.bar - Mn.sorted[[v]][b2] * sigma / rtn
-        sci.lower[idx] <- 0
-        sci.upper <- X.bar - Ln.sorted[[v]][b1] * sigma / rtn
-        sci.upper[idx] <- 0
-        
-        if(side == 'upper')  sci.lower[] <- -Inf
-        if(side == 'lower')  sci.upper[] <- Inf
-        
-        list(sci.lower=sci.lower,
-             sci.upper=sci.upper,
-             sigma2=sigma2,
-             tau=tau[v],
-             side=side,
-             Mn=Mn.sorted[[v]],
-             Ln=Ln.sorted[[v]])
-    })
-    
-    
-    # output
-    res <- list(tau=tau,
-                Sig=Sig,
-                sigma2=sigma2,
-                pairs=NULL,
-                sci.tau=sci.tau)
-    
-    if(!is.null(tau.method))
-    {
-        if(length(tau) > 1){
-            selected.tau <- hdsci.tau(X,alpha,side,NULL,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,R,ncore)
-            v <- which(tau==selected.tau)
-            res$sci <- sci.tau[[v]]
-            res$selected.tau <- selected.tau
-        } 
-        else
-        {
-            res$sci <- sci.tau[[1]]
-            res$selected.tau <- res$tau
-        }
-    }
-
-    return(res)
-}
-
-# for more than one sample
-# if tau.method==NULL, then no selection of tau is made
-hdsciK <- function(X,alpha,side,tau,B,pairs,Sig,verbose,tau.method,R,ncore)
-{
-    
-    ns <- sapply(X,function(x){nrow(x)}) # size of each sample
-    p <- ncol(X[[1]]) # dimension
-    n <- sum(ns) # total sample size
-    G <- length(X) # number of samples
-    
-#    if(is.null(tau)) tau <- seq(0,1,by=0.1)
-    
-    
-    # bootstrap max statistic
+    # bootstrapping
     bres <- bootstrap.mc(X,B,pairs,tau,Sig,ncore)
     Mn.sorted <- bres$Mn.sorted
     Ln.sorted <- bres$Ln.sorted
     sigma2 <- bres$sigma2
     
-    sci.tau <- lapply(1:length(tau),function(v){
-        # construct SCI
-        side <- tolower(side)
-        if(side == 'both')
-        {
-            a1 <- alpha/2
-            a2 <- 1 - alpha/2
-        }
-        else
-        {
-            a1 <- alpha
-            a2 <- alpha
-        }
+    if(K==1)
+    {
+        rtn <- sqrt(n)
+        X.bar <- apply(X,2,mean)
         
-        
-        b1 <- max(1,round(a1*B))
-        b2 <- round(a2*B)
-        
-        sci.lower <- list()
-        sci.upper <- list()
-        
-        for(q in 1:nrow(pairs))
-        {
-            j <- pairs[q,1]
-            k <- pairs[q,2]
+        sci.tau <- lapply(1:length(tau),function(v){
             
-            lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
-            lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
-            
-            sig2j <- sigma2[[j]]
-            sig2k <- sigma2[[k]]
-            
-            sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau[v] 
-            
-            X.bar <- apply(X[[j]],2,mean)
-            Y.bar <- apply(X[[k]],2,mean)
-            sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
-            
-            idx <- (sigjk==0)
-            
-            if(side %in% c('both','lower'))
+            # construct SCI
+            side <- tolower(side)
+            if(side == 'both')
             {
-                tmp <- (X.bar-Y.bar) - Mn.sorted[[v]][b2] * sigjk / sqrt.harm.n
-                tmp[idx] <- 0
-                sci.lower[[q]] <- tmp
+                a1 <- alpha/2
+                a2 <- 1 - alpha/2
             }
-            if(side %in% c('both','upper'))
+            else
             {
-                tmp <- (X.bar-Y.bar) - Ln.sorted[[v]][b1] * sigjk / sqrt.harm.n
-                tmp[idx] <- 0
-                sci.upper[[q]] <- tmp
+                a1 <- alpha
+                a2 <- alpha
             }
             
-            if(side == 'upper')  sci.lower[[q]] <- rep(-Inf,p)
-            if(side == 'lower')  sci.upper[[q]] <- rep(Inf,p)
-        }
+            b1 <- max(1,round(a1*B))
+            b2 <- round(a2*B)
+            
+            sigma <- sqrt(sigma2)^tau[v]
+            
+            idx <- sigma == 0
+            
+            sci.lower <- X.bar - Mn.sorted[[v]][b2] * sigma / rtn
+            sci.lower[idx] <- 0
+            sci.upper <- X.bar - Ln.sorted[[v]][b1] * sigma / rtn
+            sci.upper[idx] <- 0
+            
+            if(side == 'upper')  sci.lower[] <- -Inf
+            if(side == 'lower')  sci.upper[] <- Inf
+            
+            list(sci.lower=sci.lower,
+                 sci.upper=sci.upper,
+                 tau=tau[v],
+                 side=side,
+                 alpha=alpha,
+                 Mn=Mn.sorted[[v]],
+                 Ln=Ln.sorted[[v]])
+        })
         
-        if(G <= 2) 
-        {
-            sci.lower <- sci.lower[[1]]
-            sci.upper <- sci.upper[[1]]
-        }
-        
-        list(sci.lower=sci.lower,
-             sci.upper=sci.upper,
-             sigma2=sigma2,
-             tau=tau[v],
-             side=side,
-             pairs=pairs,
-             Mn=Mn.sorted[[v]],
-             Ln=Ln.sorted[[v]])
-    })
+    }
+    else
+    {
+        sci.tau <- lapply(1:length(tau),function(v){
+            # construct SCI
+            side <- tolower(side)
+            if(side == 'both')
+            {
+                a1 <- alpha/2
+                a2 <- 1 - alpha/2
+            }
+            else
+            {
+                a1 <- alpha
+                a2 <- alpha
+            }
+            
+            
+            b1 <- max(1,round(a1*B))
+            b2 <- round(a2*B)
+            
+            sci.lower <- list()
+            sci.upper <- list()
+            
+            for(q in 1:nrow(pairs))
+            {
+                j <- pairs[q,1]
+                k <- pairs[q,2]
+                
+                lamj <- sqrt(ns[k]/(ns[j]+ns[k]))
+                lamk <- sqrt(ns[j]/(ns[j]+ns[k]))
+                
+                sig2j <- sigma2[[j]]
+                sig2k <- sigma2[[k]]
+                
+                sigjk <- sqrt(lamj^2 * sig2j + lamk^2 * sig2k)^tau[v] 
+                
+                X.bar <- apply(X[[j]],2,mean)
+                Y.bar <- apply(X[[k]],2,mean)
+                sqrt.harm.n <- sqrt(ns[j]*ns[k]/(ns[j]+ns[k]))
+                
+                idx <- (sigjk==0)
+                
+                if(side %in% c('both','lower'))
+                {
+                    tmp <- (X.bar-Y.bar) - Mn.sorted[[v]][b2] * sigjk / sqrt.harm.n
+                    tmp[idx] <- 0
+                    sci.lower[[q]] <- tmp
+                }
+                if(side %in% c('both','upper'))
+                {
+                    tmp <- (X.bar-Y.bar) - Ln.sorted[[v]][b1] * sigjk / sqrt.harm.n
+                    tmp[idx] <- 0
+                    sci.upper[[q]] <- tmp
+                }
+                
+                if(side == 'upper')  sci.lower[[q]] <- rep(-Inf,p)
+                if(side == 'lower')  sci.upper[[q]] <- rep(Inf,p)
+            }
+            
+            if(K <= 2) 
+            {
+                sci.lower <- sci.lower[[1]]
+                sci.upper <- sci.upper[[1]]
+            }
+            
+            list(sci.lower=sci.lower,
+                 sci.upper=sci.upper,
+                 tau=tau[v],
+                 side=side,
+                 alpha=alpha,
+                 pairs=pairs,
+                 Mn=Mn.sorted[[v]],
+                 Ln=Ln.sorted[[v]])
+        })
+    }
     
     # output
     res <- list(tau=tau,
-                Sig=Sig,
+                side=side,
+                alpha=alpha,
                 pairs=pairs,
                 sigma2=sigma2,
-                sci.tau=sci.tau)
-    if(!is.null(tau.method))
-    {
-        
-        if(length(tau) > 1){
-            selected.tau <- hdsci.tau(X,alpha,side,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,tau.method,verbose,R,ncore)
-            v <- which(tau==selected.tau)
-            res$sci <- sci.tau[[v]]
-            res$selected.tau <- selected.tau
-        } 
-        else
-        {
-            res$sci <- sci.tau[[1]]
-            res$selected.tau <- res$tau
-        }
-    }
+                sci.tau=sci.tau,
+                Mn=Mn.sorted,
+                Ln=Ln.sorted)
     
     return(res)
 }
@@ -724,17 +689,17 @@ hdsci.tau <- function(X,alpha,side,pairs,sigma2,tau,Mn.sorted,Ln.sorted,B,method
                      Mn.sorted=Mn.sorted,Ln.sorted=Ln.sorted,
                      B=B,R=R,method=method,ncore=ncore)
 
-    selected.tau <- choose.tau(alpha,tau,D$size,D$pval,ifelse(method %in% c('MGB','WB','RMGB'),yes='C',no='A'))
+    D$selected.tau <- choose.tau(alpha,tau,D$size,D$pval,ifelse(method %in% c('MGB','WB','RMGB'),yes='C',no='A'))
     
     if(verbose)
     {
         message(paste0('candidate values: ', paste0(tau,collapse=' ')))
         message(paste0('estimated sizes : ', paste0(D$size,collapse=' ')))
         message(paste0('p values        : ', paste0(D$pval,collapse=' ')))
-        message(paste0('selected  tau   : ', selected.tau, ', using method=',method,', based on R=', R,' replicates.'))
+        message(paste0('selected  tau   : ', D$selected.tau, ', using method=',method,', based on R=', R,' replicates.'))
     }
     
-    return(selected.tau)
+    return(D)
 }
 
 #' @importFrom doParallel registerDoParallel

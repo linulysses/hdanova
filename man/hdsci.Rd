@@ -65,13 +65,16 @@ a list of the following objects:
                  \item{\code{Mn}}{the sorted (in increasing order) bootstrapped max statistic.}
                  \item{\code{Ln}}{the sorted (in increasing order) bootstrapped min statistic.}
                  \item{\code{side}}{the input \code{side}.}
-                 \item{\code{sigma2}}{a vector of variances for each coordinate.}
+                 \item{\code{alpha}}{the input \code{alpha}.}
              }
          }
          \item{\code{tau}}{a vector of candidate values of the decay parameter.}
          \item{\code{sci.tau}}{a list of \code{sci} objects corresponding to the candidate values in \code{tau}.}
          \item{\code{selected.tau}}{the selected value of the decay parameter from \code{tau}.}
-         \item{\code{Sig}}{the sample covariance matrix (if it is computed).}
+         \item{\code{side}}{the input \code{side}.}
+         \item{\code{alpha}}{the input \code{alpha}.}
+         \item{\code{pairs}}{a matrix of two columns, each row containing the a pair of indices of samples of which the SCI of the difference in mean is constructed.}
+         \item{\code{sigma2}}{a vector (for one sample) or a list (for multiple samples) of vectors containing variance for each coordinate.}
          }
 }
 \description{
