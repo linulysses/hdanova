@@ -88,7 +88,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     }
     
     res <- within(res,rm(Mn,Ln))
- 
+    class(res) <- 'hdaov'
     return(res)
     
 }
@@ -118,6 +118,7 @@ hdanova <- function(X,alpha,side,tau,B,pairs,Sig,verbose,ncore=1)
     Mn.sorted <- bres$Mn.sorted
     Ln.sorted <- bres$Ln.sorted
     sigma2 <- bres$sigma2
+    
     
     if(K==1)
     {
@@ -249,6 +250,13 @@ hdanova <- function(X,alpha,side,tau,B,pairs,Sig,verbose,ncore=1)
                 sci.tau=sci.tau,
                 Mn=Mn.sorted,
                 Ln=Ln.sorted)
+    
+    if(K==1) vnames <- colnames(X)
+    else vnames <- colnames(X[[1]])
+    
+    if(is.null(vnames)) vnames <- paste0('X',1:p)
+    
+    attr(res,'vnames') <- vnames
     
     return(res)
 }

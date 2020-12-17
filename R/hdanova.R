@@ -124,5 +124,7 @@ hdtest <- function(X,alpha=0.05,side='==',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     
     res <- within(res,rm(Mn,Ln,sci.tau))
     
+    class(res) <- 'hdaov'
+    
     return(res)
 }

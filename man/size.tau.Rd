@@ -8,7 +8,7 @@ size.tau(
   X,
   tau,
   alpha = 0.05,
-  side = "both",
+  side = "==",
   B = ceiling(50/alpha),
   pairs = NULL,
   verbose = F,
@@ -28,7 +28,7 @@ size.tau(
 
 \item{alpha}{significance level; default value: 0.05.}
 
-\item{side}{either of \code{'lower','upper'} or \code{'both'}; default value: \code{'both'}.}
+\item{side}{either of \code{'<=','>='} or \code{'=='}; default value: \code{'=='}.}
 
 \item{B}{the number of bootstrap replicates; default value: \code{ceiling(50/alpha)}.}
 

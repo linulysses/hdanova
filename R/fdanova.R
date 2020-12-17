@@ -64,7 +64,7 @@ fdtest <- function(X,alpha=0.05,tau=1/(1+exp(-0.8*seq(-6,5,by=1))),B=ceiling(50/
         }
     }
     
-    return(hdtest(X,alpha,'both',tau,B,pairs,NULL,verbose,tau.method,R,ncore,cuda,nblock,tpb,seed))
+    hdtest(X,alpha,'both',tau,B,pairs,NULL,verbose,tau.method,R,ncore,cuda,nblock,tpb,seed)
 }
 
 get.basis <- function(X,K,M,basis)
