@@ -102,10 +102,14 @@ hdtest <- function(X,alpha=0.05,side='==',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     res$reject <- (res$pvalue < alpha)
     res$accept <- !res$reject
     
-    if(G > 2)
+    if(G >= 2)
     {
-        rej.idx <- sapply(res$sci$sci.lower,function(z) any(z>0)) |
-            sapply(res$sci$sci.upper, function(z) any(z<0))
+        if(G == 2)
+            rej.idx <- any(res$sci$sci.lower>0) | any(res$sci$sci.upper<0)
+        else
+            rej.idx <- sapply(res$sci$sci.lower,function(z) any(z>0)) |
+                sapply(res$sci$sci.upper, function(z) any(z<0))
+        
         if(res$reject)
         {
             rej.pairs <- res$sci$pairs[rej.idx,]
