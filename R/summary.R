@@ -9,37 +9,35 @@
 #' # test for the equality of mean vectors with pairs={(1,3),(2,4)}
 #' summary(hdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6)))
 
-summary.hdaov <- function (object) 
+summary.hdaov <- function (object, all.sci = FALSE, ...) 
 {
     if (!inherits(object, "hdaov")) 
         stop(gettextf("object must be of class %s", 
                       dQuote("hdaov")), domain = NA)
     
-    x <- list()
+    output <- list()
     
-    # print p value and rejected pairs
+    # p value and rejected pairs
     if('reject' %in% names(object))
     {
-        s <- sprintf('%f (p-value: %f, selected tau: %f)', object$alpha, object$pvalue, object$selected.tau)
-        if(object$reject)
+        output$alpha <- object$alpha
+        output$pvalue <- object$pvalue
+        output$selected.tau <- object$selected.tau
+       if(object$reject)
         {
-            cat(paste0('The null hypothesis is rejected at level ', s, '\n\n'))
-            cat('Pairs of samples with significant differences in mean:\n')
+
             if(!is.null(object$pairs))
             {
                 rej.pairs <- object$rej.pairs
                 if(!is.matrix(rej.pairs)) rej.pairs <- matrix(rej.pairs,1,2)
                 colnames(rej.pairs) <- c('G1','G2')
-                x$rej.pairs <- rej.pairs
-                print(rej.pairs,row.names=F)
-                cat('\n')
+                output$rej.pairs <- rej.pairs
             }
         }
-        else cat(paste0('The null hypothesis cannot be rejected at level ', s, '\n\n'))
-        x$pvalue <- object$pvalue
+
     }
     
-    # print SCI
+    #SCI
     if('sci' %in% names(object))
     {
         if(is.null(object$pairs))
@@ -58,25 +56,62 @@ summary.hdaov <- function (object)
         }
         
         rownames(sci) <- NULL
-        x$sci <- sci
+        output$sci <- sci
         
         z <- sci$lower > 0 | sci$upper < 0
         if(any(z)){
             sci <- cbind(sci,ifelse(z,'*',''))
             colnames(sci)[length(colnames(sci))] <- ' '
+            output$sci <- sci
+            output$sci.rej <- sci[z,]
         } 
         
-        cat('Simultaneous confidence intervals (all):\n')
-        print(sci,row.names = F)
-        cat('\n')
-        
-        if(any(z))
+        if(all.sci == FALSE)
         {
-            cat('Simultaneous confidence intervals (not containing 0):\n')
-            print(sci[z,],row.names = FALSE)
+            output$sci <- NULL
         }
+
     }
     
-    class(x) <- "summary.hdanova"
+    class(output) <- "summary.hdaov"
+     output
+}
+
+#' @export
+print.summary.hdaov <- function (x, ...) 
+{
+    # print p value and rejected pairs
+
+        s <- sprintf('%f \n (p-value: %f, selected tau: %f)', x$alpha, x$pvalue, x$selected.tau)
+        if(isTRUE(x$alpha>=x$pvalue))
+        {
+            cat(paste0('The null hypothesis is rejected at level ', s, '\n\n'))
+            if('rej.pairs' %in% names(x))
+            {
+            cat('Pairs of samples with significant differences in mean:\n')
+            print(x$rej.pairs, row.names = F)
+            cat('\n')
+            }
+        }
+        else cat(paste0('The null hypothesis cannot be rejected at level ', s, '\n\n'))
+
+    
+    
+    # print SCI
+    if('sci' %in% names(x))
+    {
+        cat('Simultaneous confidence intervals (all):\n')
+        print(x$sci, row.names = F)
+        cat('\n')
+    }
+    if('sci.rej' %in% names(x))
+    {
+        cat('Simultaneous confidence intervals (not containing 0):\n')
+        print(x$sci.rej, row.names = F)
+        cat('\n')
+        
+    }
     invisible(x)
 }
+
+
