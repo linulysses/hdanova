@@ -40,7 +40,7 @@
 #'                  \item{\code{Ln}}{the sorted (in increasing order) bootstrapped min statistic.}
 #'                  \item{\code{side}}{the input \code{side}.}
 #'                  \item{\code{alpha}}{the input \code{alpha}.}
-#'          }
+#'          }}}
 #' @importFrom Rdpack reprompt
 #' @references 
 #' \insertRef{Lopes2020}{hdanova}

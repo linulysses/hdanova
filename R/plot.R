@@ -42,38 +42,57 @@ plot.hdaov <- function(x, pair.no = NULL, pairs = NULL, sci.coordinate = NULL,
     if(isTRUE(ncol(pairs) != 2 && !is.null(pairs))) stop('wrong format in pairs')
     
     pair.no <- unique(pair.no)
+    sci.coordinate <- unique(sci.coordinate)
     if(!is.null(pairs)) pairs <- pairs[!duplicated(pairs),]
     if(!is.null(pairs) && !is.matrix(pairs)) pairs <- matrix(pairs,1,2)
     
     ori.pairs <- x$pairs
     only.pairs <- ori.pairs[,c(1,2)]
-    if(!is.matrix(only.pairs)) only.pairs <- matrix(only.pairs,nrow(ori.pairs),2)
+    if(!is.matrix(only.pairs) && !is.null(only.pairs)) only.pairs <- matrix(only.pairs,nrow(ori.pairs),2)
     
     #deal with pair number and pairs 
     if(is.null(pair.no) && is.null(pairs))
     {
-        pair.no <- which(ori.pairs[,'reject']==1)
+        if(!is.null(ori.pairs)) pair.no <- which(ori.pairs[,'reject']==1)
+        if(!('reject' %in% names(x))) stop('no rejection in object')
     } else if(is.null(pair.no) && !is.null(pairs))
     {
         for (i in 1:nrow(pairs)) 
         {
+            if(is.null(only.pairs))
+            {
+                warning('No need to set \'pairs\'. \nThe procedure does not involve the \'pairs\' setting in this case.')
+                pairs = NULL
+            }else {
             pair.location <- which(apply(only.pairs, 1, function(y) sum(y == pairs[i,]))==2)
-            if(length(pair.location) == 0) stop('wrong input pairs')
+            if(length(pair.location) == 0) stop('input wrong pairs')
             pair.no[i] <- pair.location
+            }
         }
     } else if(!is.null(pair.no) && !is.null(pairs))
     {
         tmp.pair.no <- NULL
         for (i in 1:nrow(pairs)) 
         {
-            pair.location <- which(apply(only.pairs, 1, function(y) sum(y == pairs[i,]))==2)
-            if(length(pair.location) == 0) stop('wrong input pairs')
-            tmp.pair.no[i] <- pair.location
+            if(is.null(only.pairs))
+            {
+                warning('No need to set \'pair.no\' and \'pairs\'. \nThe procedure does not involve neither \'pair.no\' nor \'pairs\' setting in this case.')
+                pairs = NULL
+                pair.no = NULL
+            }else {
+                pair.location <- which(apply(only.pairs, 1, function(y) sum(y == pairs[i,]))==2)
+                if(length(pair.location) == 0) stop('input wrong pairs')
+                tmp.pair.no[i] <- pair.location
+            }
         }
-        if(sum(tmp.pair.no == pair.no[order(pair.no)]) != length(pair.no)) stop('pair number does not match pairs')
+        if(!is.null(pair.no) && sum(tmp.pair.no == pair.no[order(pair.no)]) != length(pair.no)) stop('pair number does not match pairs')
     }else
     {
-        if(max(pair.no)>nrow(only.pairs) | min(pair.no)<=0) stop('wrong input pair number')
+        if(is.null(only.pairs)) 
+            {
+            warning('No need to set \'pair.no\'. \nThe procedure does not involve the \'pair.no\' setting in this case.')
+            pair.no <- NULL
+        }else if(max(pair.no)>nrow(only.pairs) | min(pair.no)<=0) stop('input wrong pair number')
     }
     
     
@@ -86,7 +105,7 @@ plot.hdaov <- function(x, pair.no = NULL, pairs = NULL, sci.coordinate = NULL,
         p <- length(x$sci$sci.lower)
     }
     if(is.null(sci.coordinate)) sci.coordinate <- c(1:p)
-    if(max(sci.coordinate) > p) stop('wrong input sci.coordinate')
+    if(max(sci.coordinate) > p) stop('input wrong sci.coordinate')
     
     
     
