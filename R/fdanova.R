@@ -44,7 +44,7 @@
 #' 
 fdtest <- function(X,alpha=0.05,tau=1/(1+exp(-0.8*seq(-6,5,by=1))),B=ceiling(50/alpha),pairs=NULL,transform=T,K=50,
                    verbose=F,basis='fourier',tau.method='MGB',R=10*ceiling(1/alpha),ncore=1,
-                   cuda=T,nblock=32,tpb=64,seed=sample.int(2^30,1))
+                   cuda=T,nblock=32,tpb=64,seed=sample.int(2^30,1),return.sci=F)
 {
     if(transform)
     {
@@ -64,7 +64,7 @@ fdtest <- function(X,alpha=0.05,tau=1/(1+exp(-0.8*seq(-6,5,by=1))),B=ceiling(50/
         }
     }
     
-    hdtest(X,alpha,'both',tau,B,pairs,NULL,verbose,tau.method,R,ncore,cuda,nblock,tpb,seed)
+    hdtest(X,alpha,'both',tau,B,pairs,NULL,verbose,tau.method,R,ncore,cuda,nblock,tpb,seed,return.sci)
 }
 
 get.basis <- function(X,K,M,basis)

@@ -20,7 +20,8 @@ fdtest(
   cuda = T,
   nblock = 32,
   tpb = 64,
-  seed = sample.int(2^30, 1)
+  seed = sample.int(2^30, 1),
+  return.sci = F
 )
 }
 \arguments{

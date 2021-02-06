@@ -105,17 +105,19 @@ hdtest <- function(X,alpha=0.05,side='==',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     if(G >= 2)
     {
         if(G == 2)
+        {
             rej.idx <- any(res$sci$sci.lower>0) | any(res$sci$sci.upper<0)
+        }
         else
+        {
             rej.idx <- sapply(res$sci$sci.lower,function(z) any(z>0)) |
                 sapply(res$sci$sci.upper, function(z) any(z<0))
-        
-        if(res$reject)
-        {
-            rej.pairs <- res$sci$pairs[rej.idx,]
-            res$rej.pairs <- rej.pairs
         }
-        
+            if(res$reject)
+            {
+                rej.pairs <- res$sci$pairs[rej.idx,]
+                res$rej.pairs <- rej.pairs
+            }
         tmp <- cbind(res$sci$pairs,rej.idx)
         colnames(tmp) <- c('g1','g2','reject')
         res$pairs <- tmp
