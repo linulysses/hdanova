@@ -4,7 +4,7 @@
 \alias{summary.hdaov}
 \title{Produce summary of HD ANOVA}
 \usage{
-\method{summary}{hdaov}(object)
+\method{summary}{hdaov}(object, all.sci = FALSE, ...)
 }
 \arguments{
 \item{object}{the object returned from \code{hdtest}, \code{hdsci} or \code{fdtest}}
