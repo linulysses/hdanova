@@ -41,6 +41,8 @@
 #'                  \item{\code{side}}{the input \code{side}.}
 #'                  \item{\code{alpha}}{the input \code{alpha}.}
 #'          }
+#'      }
+#'  }
 #' @importFrom Rdpack reprompt
 #' @references 
 #' \insertRef{Lopes2020}{hdanova}
@@ -123,10 +125,10 @@ hdtest <- function(X,alpha=0.05,side='==',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
     
     
     if(return.sci==FALSE){
-        res <- within(res,rm(sci))
+        res <- within(res,rm('sci'))
     } 
     
-    res <- within(res,rm(Mn,Ln,sci.tau))
+    res <- within(res,rm('Mn','Ln','sci.tau'))
     
     class(res) <- 'hdaov'
     

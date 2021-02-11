@@ -87,7 +87,7 @@ hdsci <- function(X,alpha=0.05,side='both',tau=1/(1+exp(-0.8*seq(-6,5,by=1))),
         res$selected.tau <- res$tau
     }
     
-    res <- within(res,rm(Mn,Ln))
+    res <- within(res,rm('Mn','Ln'))
     class(res) <- 'hdaov'
     return(res)
     

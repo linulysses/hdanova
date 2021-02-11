@@ -57,7 +57,33 @@ hdtest(
 \item{return.sci}{T/F, indicating whether to construct SCIs or not; default: FALSE.}
 }
 \value{
-
+a list of the following objects:
+     \describe{
+         \item{\code{tau}}{a vector of candidate values of the decay parameter.}
+         \item{\code{side}}{the input \code{side}.}
+         \item{\code{alpha}}{the input \code{alpha}.}
+         \item{\code{pairs}}{a matrix of two columns, each row containing the a pair of indices of samples of which the SCI of the difference in mean is constructed.}
+         \item{\code{sigma2}}{a vector (for one sample) or a list (for multiple samples) of vectors containing variance for each coordinate.}
+         \item{\code{selected.tau}}{the selected value of the decay parameter from \code{tau}.}
+         \item{\code{size.tau}}{the estimated size for each value in \code{tau}.}
+         \item{\code{pvalue.tau}}{the p-value for each value in \code{tau}.}
+         \item{\code{pvalue}}{the p-value of the test.}
+         \item{\code{reject}}{a T/F value indicating whether the hypothesis is rejected.}
+         \item{\code{accept}}{a T/F value indicating whether the hypothesis is accepted.}
+         \item{\code{rej.paris}}{optionally gives the pairs of samples that lead to rejection.}
+         \item{\code{sci}}{if \code{return.sci=TRUE}, then a constructed SCI constructed by using \code{selected,tau}, which is a list of the following objects:
+             \describe{
+                 \item{\code{sci.lower}}{a vector (when <= two samples) or a list of vectors (when >= 3 samples) specifying the lower bound of the SCI for the mean (one-sample) or the difference of means of each pair of samples.}
+                 \item{\code{sci.upper}}{a vector (when <= two samples) or a list of vectors (when >= 3 samples) specifying the upper bound of the SCI.}
+                 \item{\code{pairs}}{a matrix of two columns, each row containing the a pair of indices of samples of which the SCI of the difference in mean is constructed.}
+                 \item{\code{tau}}{the decay parameter that is used to construct the SCI.}
+                 \item{\code{Mn}}{the sorted (in increasing order) bootstrapped max statistic.}
+                 \item{\code{Ln}}{the sorted (in increasing order) bootstrapped min statistic.}
+                 \item{\code{side}}{the input \code{side}.}
+                 \item{\code{alpha}}{the input \code{alpha}.}
+         }
+     }
+ }
 }
 \description{
 Test the mean or differences of means of high-dimensional vectors are zero or not.

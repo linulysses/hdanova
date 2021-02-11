@@ -80,7 +80,6 @@ test_that("check routines in anova.R", {
     res <- hdtest(X,alpha,B=200,R=100)
     expect_true(res$reject)
     expect_true(res$pvalue < alpha)
-    expect_invisible(summary(res))
     
     
     res <- hdtest(X,alpha,B=200,R=100,cuda=F)
