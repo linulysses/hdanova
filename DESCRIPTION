@@ -11,5 +11,5 @@ LazyData: true
 RoxygenNote: 7.1.1
 Suggests: knitr, rmarkdown, synfd, testthat
 VignetteBuilder: knitr
-Imports: Rdpack, MASS, doParallel, doSNOW, snow, foreach, parallel
+Imports: Rdpack, MASS, doParallel, doSNOW, snow, foreach, parallel, ggplot2
 RdMacros: Rdpack

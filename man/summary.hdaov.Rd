@@ -4,10 +4,14 @@
 \alias{summary.hdaov}
 \title{Produce summary of HD ANOVA}
 \usage{
-\method{summary}{hdaov}(object, all.sci = FALSE, ...)
+\method{summary}{hdaov}(object, ..., all.sci = FALSE)
 }
 \arguments{
 \item{object}{the object returned from \code{hdtest}, \code{hdsci} or \code{fdtest}}
+
+\item{...}{other arguments passed to summary or print.}
+
+\item{all.sci}{TRUE/FALSE, indicating whether to display the whole SCIs.}
 }
 \value{
 An object with information on p-value and/or SCI

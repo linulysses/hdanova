@@ -1,5 +1,7 @@
 #' Produce summary of HD ANOVA
 #' @param object the object returned from \code{hdtest}, \code{hdsci} or \code{fdtest}
+#' @param all.sci TRUE/FALSE, indicating whether to display the whole SCIs.
+#' @param ... other arguments passed to summary or print.
 #' @return An object with information on p-value and/or SCI 
 #' @export
 #' @examples 
@@ -9,9 +11,9 @@
 #' # test for the equality of mean vectors with pairs={(1,3),(2,4)}
 #' summary(hdtest(X,alpha=0.05,pairs=matrix(1:4,2,2),tau=c(0.4,0.5,0.6)))
 
-summary.hdaov <- function (object, all.sci = FALSE, ...) 
+summary.hdaov <- function(object, ..., all.sci = FALSE) 
 {
-    if (!inherits(object, "hdaov")) 
+    if(!inherits(object, "hdaov")) 
         stop(gettextf("object must be of class %s", 
                       dQuote("hdaov")), domain = NA)
     

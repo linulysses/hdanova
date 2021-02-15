@@ -3,6 +3,10 @@ title: "hdanova: An R package for High-dimensional and Functional ANOVA"
 author: "Fangkai Wu, Yinan Lin and Zhenhua Lin"
 date: "8/18/2020"
 output: pdf_document
+vignette: >
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteIndexEntry{Your Vignette Title}
+  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r setup, include=FALSE}
